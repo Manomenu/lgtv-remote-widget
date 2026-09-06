@@ -61,12 +61,12 @@ bold "Configuration"
 
 mkdir -p "$CONFIG_DIR"
 
-if [[ -f "$CONFIG_FILE" ]]; then
-  info "keeping your existing $CONFIG_FILE"
-
-  # Nie ruszamy zawartości — sprawdzamy tylko, czy nowe wydanie nie przyniosło
-  # kluczy, których nie ma u ciebie. To cała potrzebna „migracja konfiguracji”.
-  missing="$(python3 - "$REPO/setup.cfg.example" "$CONFIG_FILE" <<'PY'
+# Wypisuje klucze, które są we wzorcu, a których brakuje w podanym pliku.
+# To cała „migracja konfiguracji” potrzebna programowi tej skali: nowe wydanie
+# może dołożyć ustawienie, o którym twój plik jeszcze nie wie.
+report_missing_keys() {
+  local target="$1" label="$2" missing
+  missing="$(python3 - "$REPO/setup.cfg.example" "$target" <<'PY'
 import configparser, sys
 
 example, current = (configparser.ConfigParser() for _ in range(2))
@@ -82,24 +82,40 @@ gaps = [
 print(" ".join(gaps))
 PY
 )"
-  if [[ -n "$missing" ]]; then
-    warn "settings missing from your file (built-in defaults apply):"
-    for key in $missing; do warn "    $key"; done
-    warn "see $REPO/setup.cfg.example for what they do"
+  [[ -n "$missing" ]] || return 0
+  warn "settings missing from $label (built-in defaults apply):"
+  for key in $missing; do warn "    $key"; done
+  warn "see $REPO/setup.cfg.example for what they do"
+}
+
+if [[ -f "$REPO/setup.cfg" ]]; then
+  # setup.cfg jest źródłem prawdy. Instalowana konfiguracja staje się jego
+  # DOKŁADNĄ kopią — edytuje się jeden plik, w repozytorium, i uruchamia setup.
+  #
+  # Poprzednia zawartość ląduje obok jako .bak, i tylko wtedy, gdy naprawdę się
+  # różniła. Plik jest odtwarzalny z setup.cfg, ale gdyby ktoś dopisał coś
+  # wprost do niego, nie ma powodu, żeby to przepadło bez śladu.
+  if [[ -f "$CONFIG_FILE" ]] && ! cmp -s "$REPO/setup.cfg" "$CONFIG_FILE"; then
+    cp -p "$CONFIG_FILE" "$CONFIG_FILE.bak"
+    warn "your previous settings differed — saved as $(basename "$CONFIG_FILE").bak"
   fi
+  install -m 600 "$REPO/setup.cfg" "$CONFIG_FILE"
+  info "installed setup.cfg -> $CONFIG_FILE"
+  report_missing_keys "$REPO/setup.cfg" "setup.cfg"
+
+elif [[ -f "$CONFIG_FILE" ]]; then
+  # Nie ma setup.cfg, ale konfiguracja już stoi — nie ma z czego jej odtworzyć,
+  # więc zostaje nietknięta.
+  info "no setup.cfg in the repository — keeping $CONFIG_FILE as it is"
+  report_missing_keys "$CONFIG_FILE" "your configuration"
+
 else
-  if [[ -f "$REPO/setup.cfg" ]]; then
-    source_file="$REPO/setup.cfg"
-    info "installing your setup.cfg"
-  else
-    source_file="$REPO/setup.cfg.example"
-    info "no setup.cfg found — starting from the template"
-  fi
-  install -m 600 "$source_file" "$CONFIG_FILE"
+  install -m 600 "$REPO/setup.cfg.example" "$CONFIG_FILE"
+  info "no setup.cfg found — started from the template"
 
   # Wartości z poprzedniego zestawu skryptów, jeśli tam są — żeby nie
   # przepisywać adresu MAC z palca.
-  if [[ "$source_file" == *example && -f "$LEGACY_ENV" ]]; then
+  if [[ -f "$LEGACY_ENV" ]]; then
     # shellcheck source=/dev/null
     ( set +u; source "$LEGACY_ENV"
       for pair in "host:${LGTV_HOST:-}" "mac:${LGTV_MAC:-}" "broadcast:${LGTV_BROADCAST:-}"; do
@@ -109,12 +125,13 @@ else
       done )
     info "seeded host, MAC and broadcast from $LEGACY_ENV"
   fi
-
-  if ! grep -qE '^mac = .+' "$CONFIG_FILE"; then
-    warn "no MAC address set — the widget will be able to switch the TV off but not on"
-    warn "add it to $CONFIG_FILE under [tv]"
-  fi
 fi
+
+if ! grep -qE '^mac = .+' "$CONFIG_FILE"; then
+  warn "no MAC address set — the widget will switch the TV off but never on"
+  warn "add it under [tv] in $REPO/setup.cfg and run ./setup.sh again"
+fi
+
 chmod 600 "$CONFIG_FILE"
 mkdir -p "$STATE_DIR"
 

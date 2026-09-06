@@ -49,11 +49,19 @@ cp setup.cfg.example setup.cfg     # fill in host, MAC and broadcast address
 Then log out and back in. Wayland cannot reload GNOME Shell in place, so there
 is no way around it.
 
-`setup.sh` is idempotent, needs no root, and never overwrites an existing
-configuration — if one is already there it says which settings the new release
-added and leaves your file alone. If you have not filled in `setup.cfg`, it
-starts from the template and seeds the host, MAC and broadcast address from
-`~/scripts/lgtv/lgtv.env` when that file exists.
+`setup.sh` is idempotent and needs no root. **`setup.cfg` is the file you
+edit**; every run copies it verbatim to `~/.config/lgtv-remote/config.ini`, so
+there is one place to change a setting and one command to apply it:
+
+```sh
+$EDITOR setup.cfg && ./setup.sh
+```
+
+If the installed copy differed from `setup.cfg` it is kept once as
+`config.ini.bak` before being replaced. Without a `setup.cfg` the installer
+falls back to leaving an existing configuration alone, or — on a first run —
+starting from the template and seeding the host, MAC and broadcast address
+from `~/scripts/lgtv/lgtv.env` when that file exists.
 
 To try it without logging out:
 
@@ -67,7 +75,8 @@ Standard XDG locations — nothing is read from the repository at runtime.
 
 | What | Where |
 |---|---|
-| Settings | `~/.config/lgtv-remote/config.ini` (mode 0600) |
+| Settings you edit | `setup.cfg` in this repository (git-ignored) |
+| Settings the service reads | `~/.config/lgtv-remote/config.ini` (mode 0600, a copy of the above) |
 | Logs | `~/.local/state/lgtv-remote/{actions,errors}.log` |
 | Extension | `~/.local/share/gnome-shell/extensions/lgtv-remote@maniumek` → this repo |
 | Service | `~/.config/systemd/user/lgtv-remote.service` |

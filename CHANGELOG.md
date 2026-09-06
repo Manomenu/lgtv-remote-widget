@@ -5,6 +5,22 @@ wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
 ## [Nieopublikowane]
 
+### Zmienione
+
+- **`setup.cfg` jest teraz źródłem prawdy dla konfiguracji.** Każdy przebieg
+  `setup.sh` kopiuje go do `~/.config/lgtv-remote/config.ini` co do bajta,
+  zamiast — jak dotąd — zostawiać istniejący plik nietknięty.
+
+  Poprzednia zasada („instalator nigdy nie nadpisuje”) chroniła plik, który
+  i tak jest odtwarzalny, a w zamian rozdwajała miejsce edycji: zmiana
+  w repozytorium nie docierała nigdzie, dopóki nie powtórzyło się jej ręcznie
+  w `~/.config`. Teraz edytuje się jeden plik i uruchamia jedno polecenie.
+
+  Jeżeli zainstalowana kopia się różniła, ląduje obok jako `config.ini.bak` —
+  raz, bez mnożenia śmieci. Gdy `setup.cfg` nie istnieje, zachowanie jest jak
+  dotąd: istniejąca konfiguracja zostaje nietknięta, a przy pierwszej
+  instalacji powstaje ze wzorca, z wartościami zasianymi z `lgtv.env`.
+
 ### Naprawione
 
 - **Przyciski „dalej” i „wstecz” nie robiły nic.** Wysyłałem kody 208

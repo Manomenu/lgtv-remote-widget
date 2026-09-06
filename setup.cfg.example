@@ -1,9 +1,13 @@
 # LG TV Remote — configuration template.
 #
-# Copy this file to ./setup.cfg, fill it in, and run ./setup.sh. The installer
-# copies it to ~/.config/lgtv-remote/config.ini (mode 0600), which is the only
-# file the service ever reads. Neither setup.cfg nor the installed copy is
-# tracked by git — they hold your MAC address and network layout.
+# Copy this file to ./setup.cfg, fill it in, and run ./setup.sh. From then on
+# setup.cfg is the file you edit: every run of setup.sh copies it verbatim to
+# ~/.config/lgtv-remote/config.ini (mode 0600), which is what the service reads.
+# Edit the copy directly and the next ./setup.sh will replace it — the previous
+# contents are kept once as config.ini.bak if they differed.
+#
+# Neither setup.cfg nor the installed copy is tracked by git; they hold your
+# MAC address and network layout.
 #
 # Every key can also be overridden by an environment variable, which wins over
 # the file. Useful for a one-off: LGTV_HOST=other-tv ./bin/lgtvd
