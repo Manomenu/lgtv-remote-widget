@@ -53,7 +53,15 @@ class Daemon:
         self._target_volume: int | None = None
         self._volume_queued = False
         self._busy_until_idle = False
-        self._active_until = 0.0
+
+        #: Czy ktokolwiek na to patrzy. Ustawiane przez panel przy otwarciu
+        #: i zerowane przy zamknięciu.
+        self._watched = False
+
+        #: Wołane, gdy zmienia się tempo odpytywania — pętla główna przestawia
+        #: wtedy swój zegar. Może być wołane z wątku roboczego, więc odbiorca
+        #: musi sam przenieść robotę do pętli głównej.
+        self.on_cadence_change: Callable[[], None] | None = None
 
     # -- stan ------------------------------------------------------------------
 
@@ -75,6 +83,11 @@ class Daemon:
                 if self._state[key] != value:
                     self._state[key] = value
                     real[key] = value
+        # Wejście w operację i wyjście z niej zmienia tempo odpytywania, więc
+        # pętla główna musi przestawić zegar, a nie czekać na następny tik.
+        if "PowerState" in real and self.on_cadence_change is not None:
+            self.on_cadence_change()
+
         if real and self.on_change is not None:
             self.on_change(real)
 
@@ -88,13 +101,44 @@ class Daemon:
 
     # -- odpytywanie -----------------------------------------------------------
 
+    @property
+    def _transitioning(self) -> bool:
+        return self.get("PowerState") in ("turning-on", "turning-off")
+
     def poll_interval(self) -> int:
-        """Szybciej, gdy panel jest otwarty albo trwa operacja; inaczej rzadko."""
-        if self.get("PowerState") in ("turning-on", "turning-off"):
-            return self.cfg.poll_active
-        if time.monotonic() < self._active_until:
+        """Co ile sekund odpytywać. Zero znaczy: wcale.
+
+        Odpytywanie ma sens wyłącznie wtedy, gdy ktoś patrzy. Przy zamkniętym
+        panelu nikt nie zobaczy wyniku, a każde odpytanie to połączenie do
+        telewizora — przy 30 sekundach wychodzi blisko trzy tysiące na dobę
+        wyłącznie po to, żeby odświeżyć liczbę, której nikt nie czyta.
+        Dlatego domyślnie w spoczynku nie robimy nic.
+
+        Wyjątkiem są operacje w toku: włączanie telewizora trwa do 90 sekund
+        i musi zaktualizować stan także wtedy, gdy panel zamknięto zaraz po
+        kliknięciu.
+        """
+        if self._transitioning or self._watched:
             return self.cfg.poll_active
         return self.cfg.poll_idle
+
+    def should_poll(self) -> bool:
+        return self.poll_interval() > 0
+
+    def set_active(self, watched: bool) -> None:
+        """Panel się otworzył albo zamknął.
+
+        Otwarcie odpytuje natychmiast, żeby pierwsze spojrzenie nie trafiło
+        na stan sprzed godziny — widget do tego czasu pokazuje ostatnią znaną
+        wartość, a nie pustkę.
+        """
+        if watched == self._watched:
+            return
+        self._watched = watched
+        if watched:
+            self.worker.submit("poll", self.poll, log_action=False)
+        if self.on_cadence_change is not None:
+            self.on_cadence_change()
 
     def poll(self) -> None:
         """Jedno odpytanie telewizora. Nigdy nie rzuca — to pętla tła."""
@@ -125,8 +169,7 @@ class Daemon:
         self._update(**changes)
 
     def request_poll_soon(self) -> None:
-        """Odpytaj teraz i przez chwilę odpytuj częściej — wołane przy otwarciu panelu."""
-        self._active_until = time.monotonic() + 60
+        """Jedno odpytanie na żądanie. Nie zmienia tempa — do tego jest set_active."""
         self.worker.submit("poll", self.poll, log_action=False)
 
     # -- polecenia -------------------------------------------------------------

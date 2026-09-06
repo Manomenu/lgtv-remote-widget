@@ -355,3 +355,56 @@ def test_a_cancelled_cast_job_does_not_leave_the_tile_disabled(monkeypatch):
     d.set_cast(True)
 
     assert d.get("CastState") == "ready", "a cancelled job must clear 'starting'"
+
+
+# --- tempo odpytywania -------------------------------------------------------
+
+
+class TestPollCadence:
+    """Odpytywanie chodzi wtedy i tylko wtedy, gdy jest komu patrzeć."""
+
+    def test_closed_panel_means_no_polling_at_all(self, daemon):
+        assert daemon.poll_interval() == 0
+        assert daemon.should_poll() is False
+
+    def test_open_panel_polls_at_the_active_rate(self, daemon):
+        daemon.set_active(True)
+        assert daemon.poll_interval() == daemon.cfg.poll_active
+        assert daemon.should_poll() is True
+
+    def test_closing_the_panel_stops_polling_again(self, daemon):
+        daemon.set_active(True)
+        daemon.set_active(False)
+        assert daemon.should_poll() is False
+
+    def test_opening_the_panel_polls_immediately(self, daemon):
+        """Pierwsze spojrzenie nie ma czekać na następny tik zegara."""
+        submitted = []
+        daemon.worker.submit = lambda name, func, **kw: submitted.append(name)
+        daemon.set_active(True)
+        assert "poll" in submitted
+
+    def test_repeated_open_does_not_poll_twice(self, daemon):
+        submitted = []
+        daemon.worker.submit = lambda name, func, **kw: submitted.append(name)
+        daemon.set_active(True)
+        daemon.set_active(True)
+        assert submitted.count("poll") == 1
+
+    def test_an_operation_keeps_polling_with_the_panel_closed(self, daemon):
+        """Włączanie telewizora trwa do 90 s i musi zaktualizować stan,
+        nawet gdy panel zamknięto zaraz po kliknięciu."""
+        daemon._update(PowerState="turning-on")
+        assert daemon.should_poll() is True
+        assert daemon.poll_interval() == daemon.cfg.poll_active
+
+    def test_the_main_loop_is_told_when_the_rate_changes(self, daemon):
+        calls = []
+        daemon.on_cadence_change = lambda: calls.append(1)
+
+        daemon.set_active(True)
+        assert calls, "otwarcie panelu musi przestawić zegar"
+
+        calls.clear()
+        daemon._update(PowerState="turning-on")
+        assert calls, "wejście w operację musi przestawić zegar"

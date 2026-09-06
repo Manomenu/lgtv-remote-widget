@@ -3,7 +3,39 @@
 Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
 wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
-## [Nieopublikowane] — gałąź `audit-1`
+## [Nieopublikowane]
+
+### Zmienione
+
+- **Odpytywanie chodzi tylko wtedy, gdy ktoś patrzy.** Panel melduje otwarcie
+  i zamknięcie nową metodą `SetActive(b)`, a demon liczy z tego tempo:
+  `poll_active` (5 s) przy otwartym panelu i w trakcie operacji, `poll_idle`
+  przy zamkniętym — domyślnie **0, czyli wcale**.
+
+  Przy zamkniętym panelu odpytywanie nie dawało nic: widget jest jedynym
+  odbiorcą stanu, a zamkniętego panelu nikt nie ogląda. Co 30 sekund
+  wychodziło blisko trzy tysiące połączeń do telewizora na dobę po to, żeby
+  odświeżyć liczbę, której nikt nie czyta. Otwarcie panelu odpytuje
+  natychmiast, więc nic się nie traci — do czasu odpowiedzi widget pokazuje
+  ostatnią znaną wartość, a nie pustkę.
+
+  Operacje w toku (`turning-on`, `turning-off`) odpytują niezależnie od panelu:
+  włączanie telewizora trwa do 90 sekund i musi się dokończyć także wtedy, gdy
+  panel zamknięto zaraz po kliknięciu.
+
+  Przy zamkniętym panelu i `poll_idle = 0` zegar nie jest w ogóle zakładany —
+  proces śpi. Tempo przestawia `on_cadence_change`, żeby zmiana działała od
+  razu, a nie dopiero od następnego tiku.
+
+### Odrzucone z przeglądu
+
+- **`max-width: none` w `stylesheet.css`** (`f3191f3`) — poprawka słuszna
+  według CSS W3C, ale St ma własne parsowanie wartości. Przy `none` Shell
+  wypisuje „Ignoring length property that isn't a number” i reguła przepada;
+  sama Adwaita używa w tym miejscu `auto`. Zmierzone w obie strony na
+  Shellu 50.4, `auto` przywrócone z komentarzem.
+
+## [Przyjęte z przeglądu] — gałąź `audit-1`
 
 Wynik przeglądu wydania 1.0.0. Każda pozycja to osobny commit, dobrany tak,
 żeby dało się je przyjmować i odrzucać pojedynczo — kolejność nie jest

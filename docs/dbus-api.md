@@ -31,7 +31,24 @@ Changes are announced with the standard
 | `SetMute` | `b → ()` | |
 | `MediaKey` | `s → ()` | `next` or `previous`; anything else is an error |
 | `SetCast` | `b → ()` | Asynchronous, like `SetPower`; fails outright when `CastEnabled` is false |
+| `SetActive` | `b → ()` | Tells the service whether anyone is looking. Polling runs only while this is true (or an operation is in flight) — see below |
 | `Refresh` | `() → ()` | Poll now and poll faster for the next minute |
+
+## Polling
+
+The service does **not** poll the TV in the background. Nothing would read the
+result: the widget is the only consumer, and when its panel is closed nobody
+sees it. A 30-second poll would mean nearly three thousand connections a day to
+refresh a number no one is reading.
+
+The panel therefore calls `SetActive(true)` when it opens — which polls at once
+and then every `poll_active` seconds — and `SetActive(false)` when it closes.
+Operations in flight (`turning-on`, `turning-off`) keep polling regardless,
+because powering a TV on takes up to 90 seconds and has to finish even if the
+panel was closed right after the click.
+
+Set `[daemon] poll_idle` to a non-zero number of seconds if you want a
+background poll anyway — for a script of your own reading the properties, say.
 
 ## Driving it from a terminal
 

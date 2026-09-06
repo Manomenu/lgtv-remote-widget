@@ -15,14 +15,11 @@ export default class LgtvRemoteExtension extends Extension {
         quickSettings.menu.addItem(this._group, 2);
         this._placeAboveBackgroundApps(quickSettings);
 
-        // Odpytywanie w spoczynku jest rzadkie, żeby nie budzić telewizora co
-        // chwilę. Otwarcie panelu to jedyny moment, w którym stan naprawdę
-        // musi być świeży — więc wtedy o niego prosimy.
+        // Demon nie odpytuje telewizora, dopóki nie ma komu patrzeć — a wie
+        // o tym wyłącznie stąd. Otwarcie panelu włącza odpytywanie i wywołuje
+        // natychmiastowy odczyt, zamknięcie je gasi.
         this._menuId = quickSettings.menu.connect('open-state-changed',
-            (_menu, isOpen) => {
-                if (isOpen)
-                    this._client.refresh();
-            });
+            (_menu, isOpen) => this._client.setActive(isOpen));
     }
 
     disable() {
@@ -31,6 +28,10 @@ export default class LgtvRemoteExtension extends Extension {
             quickSettings.menu.disconnect(this._menuId);
             this._menuId = 0;
         }
+        // Bez tego demon zostaje w trybie „ktoś patrzy” i odpytuje telewizor
+        // w kółko, choć widgetu już nie ma.
+        this._client?.setActive(false);
+
         this._group?.destroy();
         this._group = null;
         this._client?.destroy();

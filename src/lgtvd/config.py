@@ -88,7 +88,10 @@ class Config:
     cast_stop_timeout: int = 20
 
     # --- demon ---------------------------------------------------------------
-    poll_idle: int = 30
+    #: Tempo odpytywania, gdy panel jest ZAMKNIĘTY. Zero (domyślnie) znaczy:
+    #: wcale — nikt wtedy nie ogląda wyniku, a każde odpytanie budzi telewizor.
+    poll_idle: int = 0
+    #: Tempo, gdy panel jest otwarty albo trwa operacja.
     poll_active: int = 5
     #: Przyjmowane i ignorowane. Dławieniem zajmuje się samo zlepianie zgłoszeń
     #: w Daemon.set_volume, więc osobna pauza nie ma już czego chronić — a że

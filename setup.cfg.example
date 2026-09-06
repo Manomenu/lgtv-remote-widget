@@ -63,9 +63,19 @@ start_timeout = 90
 stop_timeout = 20
 
 [daemon]
-# How often the TV is asked about its state. The idle figure is deliberately
-# lazy; the panel asks for a fresh reading the moment you open it.
-poll_idle = 30
+# How often the TV is asked about its state, while the panel is CLOSED.
+#
+# Zero — the default — means not at all. Nobody is looking at a closed panel,
+# and every poll is a connection to the TV; at 30 seconds that would be close
+# to three thousand of them a day to refresh a number no one reads. Opening the
+# panel polls immediately, so nothing is lost by leaving this off.
+#
+# Set it only if something other than the widget reads the state — a script of
+# your own on the session bus, say.                          [LGTV_POLL_IDLE]
+poll_idle = 0
+
+# While the panel is open, or while powering on/off is still in flight.
+#                                                          [LGTV_POLL_ACTIVE]
 poll_active = 5
 
 # Accepted and ignored, kept so upgrading does not warn about a missing key.

@@ -67,7 +67,11 @@
 .lgtv-group .quick-toggle-has-menu,
 .lgtv-group .quick-slider {
   min-width: 0;
-  max-width: none;
+  /* `auto`, nie `none` — St nie jest silnikiem W3C i ma własne parsowanie
+   * wartości. Przy `none` Shell wypisuje „Ignoring length property that isn't
+   * a number” i reguła przepada; sama Adwaita używa w tym miejscu `auto`
+   * (.quick-toggle-has-menu .quick-toggle). Zmierzone na Shellu 50.4. */
+  max-width: auto;
 }
 
 .lgtv-media-button {

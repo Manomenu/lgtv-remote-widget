@@ -125,6 +125,9 @@ export const LgtvClient = GObject.registerClass({
     setCast(on) { this._call('SetCast', () => this._proxy.SetCastAsync(on)); }
     refresh() { this._call('Refresh', () => this._proxy.RefreshAsync()); }
 
+    /** Melduje demonowi, czy panel jest otwarty — czyli czy ktoś na to patrzy. */
+    setActive(watched) { this._call('SetActive', () => this._proxy.SetActiveAsync(watched)); }
+
     destroy() {
         this._cancellable.cancel();
         this._proxy = null;

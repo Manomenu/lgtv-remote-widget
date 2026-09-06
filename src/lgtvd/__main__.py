@@ -64,17 +64,36 @@ def main(argv: list[str] | None = None) -> int:
 
     daemon.start()
 
-    # Poller sam ustala, kiedy obudzić się następnym razem: częściej przy
-    # otwartym panelu i w trakcie operacji, rzadko w spoczynku.
+    # Odpytywanie chodzi tylko wtedy, gdy jest komu patrzeć: panel melduje
+    # otwarcie i zamknięcie, a demon przelicza z tego tempo. Przy zamkniętym
+    # panelu zegar nie jest w ogóle zakładany — proces śpi, telewizor też.
+    poll_source = 0
+
+    def schedule() -> bool:
+        nonlocal poll_source
+        if poll_source:
+            GLib.source_remove(poll_source)
+            poll_source = 0
+        interval = daemon.poll_interval()
+        if interval > 0:
+            poll_source = GLib.timeout_add_seconds(interval, tick)
+        return GLib.SOURCE_REMOVE
+
     def tick() -> bool:
+        nonlocal poll_source
+        poll_source = 0
         # Kolejne obudzenie planujemy PRZED zgłoszeniem zadania. Gdyby submit
         # rzucił, harmonogram i tak przetrwa — inaczej jeden wyjątek kasuje
         # odpytywanie do końca życia procesu, bez żadnego śladu w dzienniku.
-        GLib.timeout_add_seconds(daemon.poll_interval(), tick)
-        daemon.worker.submit("poll", daemon.poll, log_action=False)
+        schedule()
+        if daemon.should_poll():
+            daemon.worker.submit("poll", daemon.poll, log_action=False)
         return GLib.SOURCE_REMOVE
 
-    GLib.timeout_add_seconds(daemon.poll_interval(), tick)
+    # Tempo zmienia się także z wątku roboczego (wejście w „włączam…”
+    # i wyjście z niego), a zegary GLib należą do pętli głównej.
+    daemon.on_cadence_change = lambda: GLib.idle_add(schedule)
+    schedule()
 
     try:
         loop.run()

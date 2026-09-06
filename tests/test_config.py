@@ -17,7 +17,7 @@ def test_defaults_apply_when_the_file_is_silent(tmp_path):
     cfg = config.load(write(tmp_path, "[tv]\nhost = tv\n"))
     assert cfg.host == "tv"
     assert cfg.key_next == 208          # KEY_FASTFORWARD
-    assert cfg.poll_idle == 30
+    assert cfg.poll_idle == 0        # przy zamkniętym panelu nie odpytujemy wcale
 
 
 def test_file_overrides_defaults(tmp_path):

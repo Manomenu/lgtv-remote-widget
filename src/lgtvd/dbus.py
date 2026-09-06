@@ -26,6 +26,7 @@ INTROSPECTION = f"""
     <method name="SetMute">    <arg type="b" name="muted" direction="in"/></method>
     <method name="MediaKey">   <arg type="s" name="key"   direction="in"/></method>
     <method name="SetCast">    <arg type="b" name="on"    direction="in"/></method>
+    <method name="SetActive"> <arg type="b" name="watched" direction="in"/></method>
     <method name="Refresh"/>
     <property name="PowerState" type="s" access="read"/>
     <property name="Volume"     type="i" access="read"/>
@@ -101,6 +102,8 @@ class Service:
                 self._daemon.media_key(str(params[0]))
             elif method == "SetCast":
                 self._daemon.set_cast(bool(params[0]))
+            elif method == "SetActive":
+                self._daemon.set_active(bool(params[0]))
             elif method == "Refresh":
                 self._daemon.request_poll_soon()
             else:
