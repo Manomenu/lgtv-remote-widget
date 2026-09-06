@@ -125,3 +125,17 @@ What is left — `NoNewPrivileges`, `RestrictSUIDSGID`, `RestrictRealtime`,
 `LockPersonality`, `MemoryDenyWriteExecute` — was each tested against both ssh
 and `flatpak run`. Measured on Fedora 44, systemd 258, OpenSSH 10.2,
 flatpak 1.16.
+
+### …and they still reached Sunshine, until it stopped being our child
+
+Seccomp filters are inherited through `exec` and survive flatpak moving the app
+into a cgroup of its own. Sunshine started as a child of this service therefore
+carried **ten** seccomp filters where a terminal launch carries **one**
+(`grep Seccomp_filters /proc/<pid>/status`), and with them a standing refusal of
+`sched_setscheduler` from `RestrictRealtime` — which is what its capture and
+encode threads use to pace frames evenly. The stream was visibly worse than the
+same Sunshine started by hand.
+
+Sunshine is now started with `systemd-run --user`, so the session manager
+spawns it beside us rather than beneath us: back to one filter, and it no longer
+dies when the service restarts.

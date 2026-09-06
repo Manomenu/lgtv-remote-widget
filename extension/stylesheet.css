@@ -74,12 +74,14 @@
   max-width: auto;
 }
 
-.lgtv-media-button {
+/* Wszystkie cztery przyciski pilota są tą samą pigułką: ta sama wysokość co
+ * systemowe kafelki (3.273em z Adwaity), sama ikona na środku, bez podpisu. */
+.lgtv-icon-button {
   min-height: 3.273em;
   border-radius: 999px;
   padding: 0;
 }
 
-.lgtv-media-icon {
-  icon-size: 1.091em;
+.lgtv-button-icon {
+  icon-size: 1.2em;
 }

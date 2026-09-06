@@ -19,6 +19,7 @@ const IFACE = `
     <method name="SetMute">   <arg type="b" name="muted" direction="in"/></method>
     <method name="MediaKey">  <arg type="s" name="key"   direction="in"/></method>
     <method name="SetCast">   <arg type="b" name="on"    direction="in"/></method>
+    <method name="SetActive"> <arg type="b" name="watched" direction="in"/></method>
     <method name="Refresh"/>
     <property name="PowerState" type="s" access="read"/>
     <property name="Volume"     type="i" access="read"/>
@@ -112,7 +113,19 @@ export const LgtvClient = GObject.registerClass({
     _call(name, invoke) {
         if (!this.available)
             return;
-        invoke().catch(error => {
+
+        // try/catch obok .catch() nie jest nadmiarowe: gdy metoda nie istnieje
+        // na proxy (bo zabrakło jej w XML-u wyżej), wywołanie rzuca OD RAZU,
+        // a nie zwraca odrzuconą obietnicę. Bez tego jeden brakujący wpis
+        // wywala cały uchwyt sygnału i psuje rzeczy, które z nim sąsiadują.
+        let pending;
+        try {
+            pending = invoke();
+        } catch (error) {
+            console.error(`lgtv-remote: cannot call ${name}: ${error}`);
+            return;
+        }
+        pending.catch(error => {
             if (!error.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
                 console.error(`lgtv-remote: ${name} failed: ${error.message}`);
         });

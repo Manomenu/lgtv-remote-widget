@@ -7,6 +7,43 @@ wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
 ### Naprawione
 
+- **Odświeżanie stanu przy otwarciu panelu nie działało wcale.** `SetActive`
+  było wołane z rozszerzenia, ale brakowało go w XML-u interfejsu, z którego
+  `Gio.DBusProxy.makeProxyWrapper` generuje metody proxy. `SetActiveAsync` było
+  więc `undefined`, a wywołanie rzucało `TypeError` **synchronicznie** — obok
+  `.catch()`, który łapie tylko odrzucone obietnice. Każde otwarcie panelu
+  wywalało uchwyt sygnału zamiast odświeżyć stan.
+
+  Stąd oba objawy naraz: ikonka zasilania nie wracała po włączeniu telewizora
+  pilotem, a głośność zmieniona na telewizorze zostawała nieaktualna.
+
+  Poza samą deklaracją: `_call()` łapie teraz także wyjątki rzucone, nie tylko
+  odrzucone obietnice, a `tests/test_interface_contract.py` porównuje XML
+  demona z XML-em rozszerzenia i sprawdza, że każda metoda wołana w JS jest
+  zadeklarowana. Rozjazd nie daje żadnego błędu przy ładowaniu, więc test
+  strukturalny jest tu jedyną obroną.
+
+- **Strumień z widgetu był gorszej jakości niż z `cast-toggle.sh`.** Filtry
+  seccomp dziedziczą się przez `exec` i przeżywają nawet to, że flatpak
+  przenosi aplikację do własnej grupy kontrolnej. Sunshine uruchamiany jako
+  dziecko usługi niósł **dziesięć** filtrów zamiast jednego, a wraz z nimi
+  zakaz `sched_setscheduler` z `RestrictRealtime` — którego jego wątki
+  przechwytu i kodowania używają do równego wypuszczania klatek.
+
+  Sunshine startuje teraz przez `systemd-run --user`, czyli obok nas, a nie pod
+  nami. Zmierzone: z dziesięciu filtrów zrobił się jeden, tyle samo co przy
+  uruchomieniu z terminala. Przy okazji przestał ginąć przy restarcie demona.
+
+### Zmienione
+
+- **Wszystkie cztery przyciski pilota wyglądają tak samo** — pigułki z samą
+  ikoną, w dwóch rzędach, zasilanie i strumieniowanie nad suwakiem głośności.
+  Podpisy zniknęły, bo przy czterech przyciskach rozbijały rytm, a powtarzały
+  to, co i tak stoi w nagłówku. Stan strumieniowania przeniósł się do nagłówka
+  jako dopisek („casting”, „starting cast…”), więc nic z informacji nie zginęło.
+
+### Naprawione (wcześniej)
+
 - **Kafelek Screencast nie działał wcale.** `RestrictNamespaces=true` w unicie
   odcinało flatpakowi możliwość zbudowania piaskownicy, więc uruchomienie
   Sunshine'a padało natychmiast na `bwrap: No permissions to create a new

@@ -80,10 +80,47 @@ def state(transport: Transport, cfg: Config, tv_awake: bool) -> str:
     return "streaming" if _last_event(cfg) == "CLIENT CONNECTED" else "ready"
 
 
-def _ensure_sunshine(cfg: Config) -> None:
-    if _sunshine_up(cfg):
+def _launch_sunshine(cfg: Config) -> None:
+    """Uruchamia Sunshine'a JAKO OSOBNĄ USŁUGĘ, nie jako własne dziecko.
+
+    To nie jest kosmetyka. Ograniczenia nałożone na tę usługę w unicie
+    (seccomp z RestrictRealtime, MemoryDenyWriteExecute i reszty) dziedziczą się
+    przez exec i przeżywają nawet to, że flatpak przenosi aplikację do własnej
+    grupy kontrolnej. Sunshine uruchomiony jako nasze dziecko dostawał
+    dziesięć filtrów seccomp zamiast jednego, a razem z nimi zakaz proszenia
+    o priorytet czasu rzeczywistego — którego jego wątki przechwytu
+    i kodowania używają do równego wypuszczania klatek. Efektem był gorszy
+    obraz niż przy uruchomieniu z terminala.
+
+    ``systemd-run --user`` zleca start menedżerowi sesji, więc proces rodzi się
+    obok nas, z czystym środowiskiem sesji graficznej. Przy okazji przestaje
+    ginąć razem z restartem demona.
+    """
+    launched_by_systemd = False
+    try:
+        result = subprocess.run(
+            [
+                "systemd-run", "--user", "--collect",
+                "--unit", "lgtv-sunshine",
+                "--description", "Sunshine, started by the LG TV remote",
+                "flatpak", "run", "--user", cfg.sunshine_app_id,
+            ],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15,
+        )
+        launched_by_systemd = result.returncode == 0
+        if not launched_by_systemd:
+            log.warning("systemd-run refused to start Sunshine: %s",
+                        result.stderr.strip()[:200])
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.warning("could not use systemd-run: %s", exc)
+
+    if launched_by_systemd:
         return
-    log.info("starting Sunshine")
+
+    # Zapas na wypadek braku systemd-run. Działa, ale Sunshine dziedziczy wtedy
+    # nasze ograniczenia i strumień bywa gorszej jakości.
+    log.warning("falling back to starting Sunshine as a child of this service — "
+                "the stream may be choppier than usual")
     subprocess.Popen(
         ["flatpak", "run", "--user", cfg.sunshine_app_id],
         stdin=subprocess.DEVNULL,
@@ -91,6 +128,13 @@ def _ensure_sunshine(cfg: Config) -> None:
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
+
+
+def _ensure_sunshine(cfg: Config) -> None:
+    if _sunshine_up(cfg):
+        return
+    log.info("starting Sunshine")
+    _launch_sunshine(cfg)
     for _ in range(30):
         if _sunshine_up(cfg):
             return

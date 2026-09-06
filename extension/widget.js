@@ -1,6 +1,6 @@
 /* Kafelki pilota, wstawione we własnej ramce do siatki Quick Settings.
  *
- * Wszystkie elementy to standardowe klasy Shella (QuickToggle, QuickSlider,
+ * Wszystkie elementy to standardowe klasy Shella (QuickSlider, .quick-toggle,
  * .quick-toggle), więc kolory, zaokrąglenia i wysokości biorą się z motywu —
  * widget zmienia się razem z resztą panelu, zamiast go udawać.
  */
@@ -9,7 +9,7 @@ import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 
-import {QuickSlider, QuickToggle} from 'resource:///org/gnome/shell/ui/quickSettings.js';
+import {QuickSlider} from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
 /** Stan zasilania -> co pokazać człowiekowi. */
 const POWER_LABEL = {
@@ -22,12 +22,11 @@ const POWER_LABEL = {
     'turning-off': 'Turning off…',
 };
 
-const CAST_LABEL = {
-    'streaming': 'Streaming',
-    'ready': 'Ready',
-    'stopped': 'Off',
-    'starting': 'Starting…',
-    'stopping': 'Stopping…',
+/** Dopisek w nagłówku o strumieniowaniu. Puste znaczy: nie ma o czym mówić. */
+const CAST_SUFFIX = {
+    'streaming': 'casting',
+    'starting': 'starting cast…',
+    'stopping': 'stopping cast…',
 };
 
 /** Kolor kropki w nagłówku — jedno miejsce na stan całej grupy. */
@@ -51,25 +50,38 @@ function volumeIcon(volume, muted) {
     return 'audio-volume-high-symbolic';
 }
 
-/** Przycisk multimedialny: pigułka o wyglądzie kafelka, ale tylko z ikoną. */
-const MediaButton = GObject.registerClass(
-class MediaButton extends St.Button {
+/** Pigułka z samą ikoną — wszystkie cztery przyciski pilota wyglądają tak samo.
+ *
+ * Nazwy stanu niesie nagłówek grupy, a nie podpisy pod ikonami: przy czterech
+ * przyciskach w dwóch rzędach etykiety rozbijały rytm, a powtarzały to, co i tak
+ * stoi wyżej.
+ */
+const IconButton = GObject.registerClass(
+class IconButton extends St.Button {
     _init(iconName, accessibleName) {
         super._init({
             // 'button' jest tu konieczne, nie ozdobne: w Adwaicie bazowe tło
-            // pigułki daje właśnie ta klasa, a 'quick-toggle' dokłada tylko
-            // zaokrąglenie, wysokość i wygląd stanu wciśniętego.
-            style_class: 'button quick-toggle lgtv-media-button',
+            // pigułki daje właśnie ta klasa, a 'quick-toggle' dokłada
+            // zaokrąglenie, wysokość i wygląd stanu włączonego.
+            style_class: 'button quick-toggle lgtv-icon-button',
             can_focus: true,
             x_expand: true,
             accessible_name: accessibleName,
             child: new St.Icon({
                 icon_name: iconName,
-                style_class: 'lgtv-media-icon',
+                style_class: 'lgtv-button-icon',
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
             }),
         });
+    }
+
+    /** Podświetlenie akcentem — ta sama pseudoklasa, której używa Shell. */
+    setChecked(checked) {
+        if (checked)
+            this.add_style_pseudo_class('checked');
+        else
+            this.remove_style_pseudo_class('checked');
     }
 });
 
@@ -137,21 +149,13 @@ class LgtvGroup extends St.BoxLayout {
             x_expand: true,
         });
 
-        // toggleMode wyłączone celowo: o stanie kafelka decyduje telewizor,
-        // a nie kliknięcie. Inaczej kafelek zapalałby się na zielono zanim
-        // cokolwiek by się stało, i gasł przy pierwszym nieudanym poleceniu.
-        this._power = new QuickToggle({
-            title: 'Power',
-            iconName: 'system-shutdown-symbolic',
-            toggleMode: false,
-        });
+        // O podświetleniu decyduje telewizor, a nie kliknięcie — inaczej
+        // przycisk zapalałby się, zanim cokolwiek by się stało, i gasł przy
+        // pierwszym nieudanym poleceniu.
+        this._power = new IconButton('system-shutdown-symbolic', 'Power');
         this._power.connect('clicked', () => this._client.setPower(!this._client.awake));
 
-        this._cast = new QuickToggle({
-            title: 'Screencast',
-            iconName: 'screen-shared-symbolic',
-            toggleMode: false,
-        });
+        this._cast = new IconButton('screen-shared-symbolic', 'Screencast');
         this._cast.connect('clicked',
             () => this._client.setCast(this._client.castState !== 'streaming'));
 
@@ -189,10 +193,10 @@ class LgtvGroup extends St.BoxLayout {
             x_expand: true,
         });
 
-        this._previous = new MediaButton('media-skip-backward-symbolic', 'Previous track');
+        this._previous = new IconButton('media-skip-backward-symbolic', 'Previous track');
         this._previous.connect('clicked', () => this._client.mediaKey('previous'));
 
-        this._next = new MediaButton('media-skip-forward-symbolic', 'Next track');
+        this._next = new IconButton('media-skip-forward-symbolic', 'Next track');
         this._next.connect('clicked', () => this._client.mediaKey('next'));
 
         row.add_child(this._previous);
@@ -224,10 +228,13 @@ class LgtvGroup extends St.BoxLayout {
         const awake = client.awake;
         const reachable = client.available;
 
-        // Nagłówek niesie stan całej grupy; kafelki tylko swój własny.
-        this._status.text = reachable
-            ? POWER_LABEL[power] ?? power
-            : 'Service not running';
+        // Nagłówek niesie stan całej grupy. Przyciski są bez podpisów, więc
+        // to jedyne miejsce na słowa — stąd dopisek o strumieniowaniu wtedy
+        // i tylko wtedy, gdy dzieje się coś poza "wyłączone".
+        let status = reachable ? POWER_LABEL[power] ?? power : 'Service not running';
+        if (reachable && client.castEnabled && CAST_SUFFIX[cast])
+            status += ` · ${CAST_SUFFIX[cast]}`;
+        this._status.text = status;
         for (const name of Object.values(DOT_CLASS))
             this._dot.remove_style_class_name(name);
         this._dot.add_style_class_name(
@@ -241,12 +248,9 @@ class LgtvGroup extends St.BoxLayout {
         else
             this.add_style_class_name('lgtv-group-asleep');
 
-        // Kafelek zasilania NIE powtarza stanu w podtytule: ten sam napis stoi
-        // już w nagłówku, dwa centymetry wyżej, i jest liczony z tego samego
-        // słownika. O tym, czy telewizor działa, mówi tu podświetlenie kafelka
-        // — dokładnie tak, jak systemowy kafelek Wi-Fi, który też nie dopisuje
-        // pod sobą "Connected".
-        this._power.checked = awake;
+        // O tym, czy telewizor działa, mówi podświetlenie przycisku; słownie
+        // stan stoi w nagłówku grupy.
+        this._power.setChecked(awake);
         this._setEnabled(this._power, reachable && !client.busy);
 
         // Wyłączone w konfiguracji strumieniowanie znika z panelu zamiast
@@ -256,10 +260,7 @@ class LgtvGroup extends St.BoxLayout {
         // niż widget; ukrywamy go dopiero, gdy demon powie, że go nie chce.
         this._cast.visible = !reachable || client.castEnabled;
 
-        // Strumieniowanie zostaje z podtytułem: nagłówek go nie pokazuje,
-        // a "Ready" i "Streaming" to naprawdę różne rzeczy.
-        this._cast.checked = cast === 'streaming';
-        this._cast.subtitle = reachable ? CAST_LABEL[cast] ?? cast : 'Unavailable';
+        this._cast.setChecked(cast === 'streaming');
         this._setEnabled(this._cast, reachable && awake && !client.busy);
 
         const volume = client.volume;
