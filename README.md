@@ -117,3 +117,7 @@ nothing pesters the TV in the background.
 
 For the details — the D-Bus interface, and the surprising things this TV does —
 see [`docs/`](docs/).
+
+## License
+
+MIT — see [LICENSE](LICENSE). Do what you like with it.
