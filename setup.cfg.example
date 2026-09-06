@@ -39,17 +39,22 @@ retry_every = 5
 [keys]
 # Remote key presses are injected straight into the TV's input layer.
 #
-# On this firmware only event5 is actually read by webOS — event0 advertises
-# every key code in its capability bitmap but delivers nothing. See
-# docs/webos-notes.md for how that was measured.        [LGTV_KEY_DEVICE]
-device = /dev/input/event5
+# The device is looked up by NAME, because the numbers move: between two probes
+# on the same afternoon the list grew from 7 entries to 11 as Bluetooth audio,
+# a mouse and an IoT keypad appeared. The path below is only a fallback for
+# when the name cannot be found.                     [LGTV_KEY_DEVICE_NAME]
+device_name = LGE M-RCU - Builtin [2]
+#                                                        [LGTV_KEY_DEVICE]
+device = /dev/input/event4
 
-# event5 does not support KEY_NEXTSONG/KEY_PREVIOUSSONG, so track skipping goes
-# through fast-forward and rewind — which is what the physical remote sends too.
-# Change these if your player wants different codes.
-# 208 = KEY_FASTFORWARD, 168 = KEY_REWIND                 [LGTV_KEY_NEXT]
-next = 208
-previous = 168
+# "Next" and "previous" on this remote are the ∧/∨ rocker, which sends channel
+# up and channel down — not the media keys. Recorded by listening to every
+# input device while pressing the real remote; see docs/webos-notes.md.
+#
+# 402 = KEY_CHANNELUP, 403 = KEY_CHANNELDOWN            [LGTV_KEY_NEXT]
+next = 402
+#                                                      [LGTV_KEY_PREVIOUS]
+previous = 403
 
 [cast]
 # Screen streaming from this computer to the TV: Sunshine here, Moonlight there.

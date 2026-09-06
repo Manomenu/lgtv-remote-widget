@@ -20,31 +20,51 @@ Two independent traps that both have to be worked around on **every** call:
 
 Both are handled once, in `src/lgtvd/luna.py`.
 
-## Key injection: only `event5` is real
+## Key injection
 
-| Device | Name | Key codes advertised | Actually delivered? |
-|---|---|---|---|
-| `/dev/input/event0` | LGE RCU | 767 (every code) | **No** |
-| `/dev/input/event5` | LGE TONE+ - Builtin [3] | 45 | **Yes** |
+### The device numbers move — look it up by name
 
-`event0` advertises a full `ffffffff` capability bitmap and accepts writes
-without error, but webOS never reads from it. `event5` advertises far less and
-is the one the input stack consumes.
+Two probes on the same afternoon saw 7 devices and then 11, as Bluetooth
+audio, a mouse and an IoT keypad appeared. A hard-coded `/dev/input/eventN`
+is therefore a time bomb. Names are stable, so the injection script resolves
+the device by name (`LGE M-RCU - Builtin [2]`) and falls back to the
+configured path only if that name is gone.
 
-Measured by injecting `KEY_VOLUMEUP` (115) into each device and reading the
-volume back over the bus — a test whose result does not depend on anyone
+### Not every device is read
+
+`/dev/input/event0` (LGE RCU) advertises a full `ffffffff` capability bitmap
+and accepts writes without error, but webOS never reads from it. `event4` and
+`event5` both deliver. Measured by injecting `KEY_VOLUMEUP` (115) and reading
+the volume back over the bus — a test whose result does not depend on anyone
 watching the screen.
 
-## There is no next-track key
+### "Next" and "previous" are the channel rocker
 
-`event5` does **not** support `KEY_NEXTSONG` (163) or `KEY_PREVIOUSSONG` (165).
-It does support `KEY_FASTFORWARD` (208) and `KEY_REWIND` (168), which is what
-the physical remote sends and what players on the TV respond to. Those are the
-defaults in `[keys]`; change them there if your player wants something else.
+The buttons that skip tracks are **not** media keys. Recorded by listening to
+every input device at once while pressing the real remote:
+
+| Button | Device | Code |
+|---|---|---|
+| previous | `event4` — LGE M-RCU - Builtin [2] | **403** (`KEY_CHANNELDOWN`) |
+| next | `event4` — LGE M-RCU - Builtin [2] | **402** (`KEY_CHANNELUP`) |
+
+An earlier guess in this file — that skipping went through `KEY_FASTFORWARD`
+(208) and `KEY_REWIND` (168) because `event5` lacks `KEY_NEXTSONG` — was
+**wrong, and the widget did nothing because of it**. Those codes are supported
+by the device and were delivered; they simply are not what the remote sends,
+so nothing on the TV was listening for them. The capability bitmap says what a
+device *can* carry, never what an application reacts to. The only way to learn
+the second is to record a real button press.
 
 `luna://com.webos.service.mediacontroller` does not exist on this firmware —
 the service replies `Service does not exist`, so there is no higher-level media
 API to use instead.
+
+### Press length
+
+The real remote holds a button for roughly 160 ms. Injected presses hold 120 ms
+rather than the shortest possible, so an application that debounces its input
+cannot mistake them for contact bounce.
 
 ## Power states
 

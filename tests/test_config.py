@@ -16,7 +16,7 @@ def write(tmp_path, text):
 def test_defaults_apply_when_the_file_is_silent(tmp_path):
     cfg = config.load(write(tmp_path, "[tv]\nhost = tv\n"))
     assert cfg.host == "tv"
-    assert cfg.key_next == 208          # KEY_FASTFORWARD
+    assert cfg.key_next == 402          # rocker kanałów w górę
     assert cfg.poll_idle == 0        # przy zamkniętym panelu nie odpytujemy wcale
 
 
@@ -43,6 +43,13 @@ def test_blank_environment_does_not_override(tmp_path, monkeypatch):
     path = write(tmp_path, "[tv]\nhost = from-file\n")
     monkeypatch.setenv("LGTV_HOST", "   ")
     assert config.load(path).host == "from-file"
+
+
+def test_the_input_device_is_named_as_well_as_pathed(tmp_path):
+    """Numery urządzeń się przesuwają, więc nazwa jest źródłem prawdy."""
+    cfg = config.load(write(tmp_path, "[tv]\nhost = tv\n"))
+    assert cfg.key_device_name == "LGE M-RCU - Builtin [2]"
+    assert cfg.key_device.startswith("/dev/input/event")
 
 
 def test_booleans_and_numbers_are_converted(tmp_path):

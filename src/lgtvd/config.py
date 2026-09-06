@@ -38,6 +38,7 @@ _SCHEMA: list[tuple[str, str, str, str, type]] = [
     ("power", "off_timeout", "off_timeout", "LGTV_OFF_TIMEOUT", int),
     ("power", "retry_every", "retry_every", "LGTV_RETRY_EVERY", int),
     ("keys", "device", "key_device", "LGTV_KEY_DEVICE", str),
+    ("keys", "device_name", "key_device_name", "LGTV_KEY_DEVICE_NAME", str),
     ("keys", "next", "key_next", "LGTV_KEY_NEXT", int),
     ("keys", "previous", "key_previous", "LGTV_KEY_PREVIOUS", int),
     ("cast", "enabled", "cast_enabled", "LGTV_CAST_ENABLED", bool),
@@ -72,12 +73,16 @@ class Config:
 
     # --- klawisze ------------------------------------------------------------
     #
-    # Ustalone doświadczalnie na tym firmwarze (patrz docs/webos-notes.md):
-    # event5 jest jedynym urządzeniem, z którego webOS faktycznie czyta, i nie
-    # obsługuje KEY_NEXTSONG — za to obsługuje przewijanie.
-    key_device: str = "/dev/input/event5"
-    key_next: int = 208       # KEY_FASTFORWARD
-    key_previous: int = 168   # KEY_REWIND
+    # Zmierzone przez nasłuchiwanie wszystkich urządzeń wejściowych telewizora
+    # w trakcie naciskania prawdziwego pilota (patrz docs/webos-notes.md).
+    #
+    # Urządzenie wyszukiwane jest po NAZWIE, bo numery się przesuwają: między
+    # dwoma pomiarami tego samego dnia lista urosła z 7 do 11 pozycji. Ścieżka
+    # niżej służy już tylko za zapas, gdyby nazwa się nie znalazła.
+    key_device_name: str = "LGE M-RCU - Builtin [2]"
+    key_device: str = "/dev/input/event4"
+    key_next: int = 402       # rocker w górę (KEY_CHANNELUP)
+    key_previous: int = 403   # rocker w dół  (KEY_CHANNELDOWN)
 
     # --- strumieniowanie -----------------------------------------------------
     cast_enabled: bool = True

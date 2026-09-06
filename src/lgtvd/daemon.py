@@ -288,7 +288,7 @@ class Daemon:
         code = codes[name]
 
         def job() -> None:
-            keys.tap(self.transport, self.cfg.key_device, code)
+            keys.tap(self.transport, self.cfg, code)
 
         self.worker.submit("media_key", job, fields={"key": name, "code": code})
 

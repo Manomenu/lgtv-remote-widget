@@ -129,7 +129,7 @@ def turn_off(transport: Transport, cfg: Config, **kwargs) -> str:
         log.warning("powerOff was not acknowledged — falling back to the power key")
         from . import keys
         try:
-            keys.tap(transport, cfg.key_device, 116)   # KEY_POWER
+            keys.tap(transport, cfg, 116)   # KEY_POWER
         except Exception as exc:
             log.warning("the power key fallback failed too: %s", exc)
 

@@ -7,6 +7,31 @@ wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
 ### Naprawione
 
+- **Przyciski „dalej” i „wstecz” nie robiły nic.** Wysyłałem kody 208
+  (`KEY_FASTFORWARD`) i 168 (`KEY_REWIND`), zgadnięte z tego, że urządzenie
+  ich nie odrzuca. Nagranie prawdziwego pilota pokazało co innego: te przyciski
+  to rocker kanałów i wysyłają **402** (`KEY_CHANNELUP`) i **403**
+  (`KEY_CHANNELDOWN`), na urządzeniu `LGE M-RCU - Builtin [2]`.
+
+  Moje kody docierały do telewizora bez błędu — po prostu nikt ich tam nie
+  słuchał. Bitmapa możliwości urządzenia mówi, co ono *potrafi przenieść*,
+  a nigdy na co reaguje aplikacja; drugiego można się dowiedzieć wyłącznie
+  nagrywając prawdziwe naciśnięcie.
+
+  Potwierdzone w drugą stronę: wstrzyknięte zdarzenia są w nagraniu nie do
+  odróżnienia od tych z pilota — to samo urządzenie, te same kody, ta sama
+  para wciśnięcie/puszczenie.
+
+- **Numer urządzenia wejściowego przestał być zapisany na sztywno.** Między
+  dwoma pomiarami tego samego popołudnia lista urosła z 7 pozycji do 11 (doszło
+  audio Bluetooth, mysz i klawiatura IoT), więc `/dev/input/event4` mogło
+  z czasem oznaczać co innego. Urządzenie jest teraz wyszukiwane po nazwie,
+  a ścieżka z konfiguracji służy tylko za zapas.
+
+- **Naciśnięcie trwa 120 ms zamiast 40 ms.** Prawdziwy pilot trzyma przycisk
+  około 160 ms; przy zbyt krótkim impulsie aplikacja mogłaby uznać go za
+  drgnięcie styku.
+
 - **Usługa nie wstawała po ponownym zalogowaniu.** Widget pokazywał wtedy
   „Service not running” przy działającym telewizorze, aż do restartu maszyny.
 
