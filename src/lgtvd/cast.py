@@ -43,16 +43,24 @@ def _sunshine_up(cfg: Config) -> bool:
         return sock.connect_ex(("127.0.0.1", cfg.sunshine_port)) == 0
 
 
-def _last_event(cfg: Config) -> str:
-    path = cfg.sunshine_log
+def _tail(cfg: Config) -> str:
+    """Ostatnie ``_TAIL_BYTES`` dziennika Sunshine'a; pusty łańcuch, gdy go nie ma.
+
+    Czytamy od końca, bo dziennik rośnie bez ograniczeń, a interesują nas
+    wyłącznie świeże zdarzenia. Dekodowanie z ``replace`` — ucięcie w połowie
+    znaku wielobajtowego jest tu regułą, nie wyjątkiem.
+    """
     try:
-        with open(path, "rb") as handle:
+        with open(cfg.sunshine_log, "rb") as handle:
             handle.seek(0, os.SEEK_END)
             handle.seek(max(0, handle.tell() - _TAIL_BYTES), os.SEEK_SET)
-            text = handle.read().decode("utf-8", "replace")
+            return handle.read().decode("utf-8", "replace")
     except OSError:
         return ""
-    found = _EVENTS.findall(text)
+
+
+def _last_event(cfg: Config) -> str:
+    found = _EVENTS.findall(_tail(cfg))
     return found[-1] if found else ""
 
 
@@ -94,15 +102,10 @@ def _ensure_sunshine(cfg: Config) -> None:
 
 
 def _count_connects(cfg: Config) -> int:
-    path = cfg.sunshine_log
-    try:
-        with open(path, "rb") as handle:
-            handle.seek(0, os.SEEK_END)
-            handle.seek(max(0, handle.tell() - _TAIL_BYTES), os.SEEK_SET)
-            text = handle.read().decode("utf-8", "replace")
-    except OSError:
-        return 0
-    return len(re.findall(r"CLIENT CONNECTED", text))
+    # "CLIENT DISCONNECTED" nie jest tu zagrożeniem: między "CLIENT" a
+    # "CONNECTED" stoi w nim "DIS", więc pełna fraza się nie dopasowuje.
+    # (Pułapka z podciągiem dotyczy _EVENTS, gdzie wzorce są krótsze.)
+    return len(re.findall(r"CLIENT CONNECTED", _tail(cfg)))
 
 
 def start(transport: Transport, cfg: Config, cancelled: Callable[[], bool] | None = None) -> None:
