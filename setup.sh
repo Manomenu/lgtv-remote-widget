@@ -140,6 +140,15 @@ sed -e "s|@REPO@|$REPO|g" \
     "$REPO/systemd/$SERVICE.in" > "$UNIT_FILE"
 info "wrote $UNIT_FILE"
 
+# Zaczepienie usługi przeniosło się z default.target na graphical-session.target.
+# `systemctl disable` czyta bieżący plik unitu, więc starego dowiązania samo nie
+# usunie — zostałoby po nim martwe "wants" i ostrzeżenie przy każdym starcie.
+STALE_WANT="$CONFIG_HOME/systemd/user/default.target.wants/$SERVICE"
+if [[ -L "$STALE_WANT" ]]; then
+  rm -f "$STALE_WANT"
+  info "removed the stale default.target link (the service now follows the login session)"
+fi
+
 systemctl --user daemon-reload
 
 if [[ "$ENABLE" -eq 1 ]]; then

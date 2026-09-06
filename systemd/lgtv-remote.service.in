@@ -4,6 +4,18 @@ Documentation=file://@REPO@/README.md
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
+# Usługa żyje dokładnie tyle, co sesja graficzna — i to jest tu istotne.
+#
+# Menedżer systemd użytkownika PRZEŻYWA wylogowanie, więc default.target
+# zostaje osiągnięty raz, przy pierwszym zalogowaniu po starcie maszyny,
+# i nigdy więcej. Usługa zaczepiona o niego nie wstaje po ponownym
+# zalogowaniu — po prostu nie ma jej co pociągnąć.
+#
+# graphical-session.target jest zatrzymywany i uruchamiany na KAŻDE
+# wylogowanie i zalogowanie, więc to on jest właściwym zaczepieniem.
+PartOf=graphical-session.target
+After=graphical-session.target
+
 [Service]
 Type=simple
 ExecStart=@REPO@/bin/lgtvd
@@ -29,4 +41,4 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

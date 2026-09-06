@@ -8,7 +8,6 @@ z terminala, zanim powstanie pierwszy kafelek.
 from __future__ import annotations
 
 import threading
-import time
 from collections.abc import Callable
 
 from . import cast, keys, power, tv

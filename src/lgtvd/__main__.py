@@ -13,6 +13,7 @@ from gi.repository import GLib  # noqa: E402
 
 from . import __version__, config, logs  # noqa: E402
 from .daemon import Daemon  # noqa: E402
+from .dbus import BUS_NAME as dbus_name  # noqa: E402
 from .dbus import Service  # noqa: E402
 from .paths import CONFIG_FILE  # noqa: E402
 
@@ -42,12 +43,25 @@ def main(argv: list[str] | None = None) -> int:
     service = Service(daemon)
     loop = GLib.MainLoop()
 
+    # Kod wyjścia decyduje, czy systemd nas wskrzesi. Zatrzymanie usługi to
+    # sukces; utrata nazwy na szynie w trakcie działania to awaria, po której
+    # proces jest już do niczego i ma wstać na nowo.
+    exit_code = 0
+
     def shutdown(*_args) -> bool:
         logs.log.info("shutting down")
         loop.quit()
         return GLib.SOURCE_REMOVE
 
-    service.own_name(on_lost=shutdown)
+    def name_lost() -> None:
+        nonlocal exit_code
+        exit_code = 1
+        logs.log.error(
+            "lost the %s name on the session bus — another instance took it "
+            "or the bus went away", dbus_name)
+        loop.quit()
+
+    service.own_name(on_lost=name_lost)
 
     # GLibUnix to nowsza nazwa tego samego; starsze wydania jej nie mają, więc
     # sięgamy po nią tylko wtedy, gdy istnieje.
@@ -100,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         service.unregister()
         daemon.stop()
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

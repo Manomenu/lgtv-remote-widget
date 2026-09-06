@@ -5,6 +5,30 @@ wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
 ## [Nieopublikowane]
 
+### Naprawione
+
+- **Usługa nie wstawała po ponownym zalogowaniu.** Widget pokazywał wtedy
+  „Service not running” przy działającym telewizorze, aż do restartu maszyny.
+
+  Dwie przyczyny naraz. Po pierwsze unit był zaczepiony o `default.target`,
+  a menedżer systemd użytkownika **przeżywa wylogowanie** — ten target zostaje
+  osiągnięty raz, przy pierwszym zalogowaniu po starcie maszyny, i nigdy
+  więcej. Zmierzone na żywym systemie: menedżer i `default.target` z 12:07:37,
+  a `graphical-session.target` zatrzymany o 17:44:34 i uruchomiony ponownie
+  o 17:44:41 — dokładnie na wylogowaniu i zalogowaniu. Unit chodzi teraz za
+  `graphical-session.target` (`PartOf` + `WantedBy`).
+
+  Po drugie demon kończył pracę kodem 0 przy utracie nazwy na szynie, więc
+  `Restart=on-failure` nie miał podstaw, żeby go wskrzesić. Utrata nazwy
+  w trakcie działania daje teraz kod 1; samo zatrzymanie usługi nadal 0.
+
+  `setup.sh` usuwa przy okazji nieaktualne dowiązanie w `default.target.wants`
+  — `systemctl disable` czyta bieżący plik unitu i samo by go nie ruszyło.
+
+  Strona rozszerzenia okazała się przy tym niewinna: sprawdzone w zagnieżdżonym
+  Shellu, że widget uruchomiony **przed** demonem podnosi się sam, gdy demon
+  się pojawi. Wyścig przy logowaniu nie wymaga żadnej obsługi.
+
 ### Zmienione
 
 - **Odpytywanie chodzi tylko wtedy, gdy ktoś patrzy.** Panel melduje otwarcie
