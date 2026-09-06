@@ -62,12 +62,26 @@ def _wait_for(
     """Czeka na docelowy stan, ponawiając polecenie co ``retry_every`` sekund."""
     started = time.monotonic()
     last_resend = started
+    last_state = "unknown"
 
     while True:
         if cancelled is not None and cancelled():
             raise PowerError("cancelled")
 
+        # Limit sprawdzamy na szczycie pętli, TUŻ przed sondowaniem, a pauzę
+        # na dole skracamy tak, by nie przeskoczyła granicy. Wcześniej limit
+        # stał za sondowaniem, więc pętla zaczynała kolejne — kilkanaście
+        # sekund dwóch wywołań ssh z ConnectTimeout — nawet gdy było już
+        # pewne, że jego wynik pójdzie do kosza. Deklarowany timeout ma być
+        # granicą czekania, a nie chwilą, od której zaczyna się ostatnie.
+        if time.monotonic() - started >= limit:
+            raise PowerError(
+                f"the TV did not reach the requested state within {limit}s "
+                f"(last seen: {last_state})"
+            )
+
         state = tv.power_state(transport)
+        last_state = state
         if on_tick is not None:
             on_tick(state)
 
@@ -75,16 +89,14 @@ def _wait_for(
         if awake == want_awake:
             return state
 
-        elapsed = time.monotonic() - started
-        if elapsed >= limit:
-            raise PowerError(
-                f"the TV did not reach the requested state within {limit}s "
-                f"(last seen: {state})"
-            )
         if time.monotonic() - last_resend >= retry_every:
             resend()
             last_resend = time.monotonic()
-        time.sleep(2)
+
+        remaining = limit - (time.monotonic() - started)
+        if remaining <= 0:
+            continue          # limit minął — niech pętla go zgłosi na szczycie
+        time.sleep(min(2, remaining))
 
 
 def turn_on(transport: Transport, cfg: Config, **kwargs) -> str:
