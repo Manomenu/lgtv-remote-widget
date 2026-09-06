@@ -26,7 +26,7 @@ Changes are announced with the standard
 
 | Method | Signature | Notes |
 |---|---|---|
-| `SetPower` | `b → ()` | State goes to `turning-on`/`turning-off` first; a cold start can take 90 s |
+| `SetPower` | `b → ()` | State goes to `turning-on`/`turning-off` first; a cold start can take 90 s. A no-op when the TV is already in the requested state — including `SetPower false` while it is `standby` or `offline`, which returns success without doing anything |
 | `SetVolume` | `i → ()` | Coalesced — only the newest value is sent, at most every 120 ms |
 | `SetMute` | `b → ()` | |
 | `MediaKey` | `s → ()` | `next` or `previous`; anything else is an error |

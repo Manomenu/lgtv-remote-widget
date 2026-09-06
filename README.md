@@ -98,6 +98,11 @@ tail -f ~/.local/state/lgtv-remote/actions.log
 Everything the widget can do is also reachable from a terminal — see
 [docs/dbus-api.md](docs/dbus-api.md).
 
+## What changed
+
+Release history and the reasoning behind each change live in
+[CHANGELOG.md](CHANGELOG.md).
+
 ## Uninstall
 
 ```sh

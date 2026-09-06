@@ -132,6 +132,11 @@ class Daemon:
     # -- polecenia -------------------------------------------------------------
 
     def set_power(self, on: bool) -> None:
+        # Prośba o stan, w którym telewizor już jest, kończy się cicho i to
+        # jest zamierzone: z widgetu w ogóle nie da się jej wywołać (kafelek
+        # liczy kierunek z tego samego stanu), a z busctl lepiej nic nie robić
+        # niż budzić telewizor po to, żeby go zaraz wyłączyć. Udokumentowane
+        # w docs/dbus-api.md, żeby cisza na szynie nie wyglądała na awarię.
         if on and self.awake:
             return
         if not on and self.get("PowerState") in ("offline", "standby"):
