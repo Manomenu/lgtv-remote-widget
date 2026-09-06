@@ -33,10 +33,14 @@ RestartSec=5
 #
 # Zmierzone na Fedorze 44 / systemd 258 / OpenSSH 10.2. Nie przywracać bez
 # sprawdzenia, że ssh nadal działa z wnętrza usługi.
+# RestrictNamespaces również jest tu NIEOBECNE świadomie: flatpak buduje
+# piaskownicę przez bubblewrap, który potrzebuje własnych przestrzeni nazw.
+# Z tym ograniczeniem uruchomienie Sunshine'a kończy się natychmiast
+# komunikatem „bwrap: No permissions to create a new namespace”, a kafelek
+# Screencast po prostu nie działa. Zmierzone na Fedorze 44 / flatpak 1.16.
 NoNewPrivileges=true
 RestrictSUIDSGID=true
 RestrictRealtime=true
-RestrictNamespaces=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
 

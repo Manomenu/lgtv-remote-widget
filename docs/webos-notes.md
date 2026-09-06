@@ -103,3 +103,25 @@ low teens.
 
 `createToast` works; `closeToast` does not. webOS decides when a notification
 disappears and there is no way to set a duration.
+
+## Running the service under systemd
+
+Two sandboxing options had to be left out of the user unit, both because this
+service exists to launch other programs. Both were found the same way: the
+feature silently did nothing, and the log said why.
+
+**Anything that creates a mount namespace** (`ProtectSystem`, `ProtectHome`,
+`PrivateTmp`) makes root-owned files appear as `nobody:nobody` inside a *user*
+unit. OpenSSH then refuses to read `/etc/ssh/ssh_config.d/*` with
+"Bad owner or permissions" and exits 255 — the service loses its only way of
+talking to the TV and reports it as switched off.
+
+**`RestrictNamespaces`** blocks flatpak: bubblewrap needs namespaces of its own
+to build the sandbox, so starting Sunshine dies immediately with
+"bwrap: No permissions to create a new namespace" and the screencast tile never
+works.
+
+What is left — `NoNewPrivileges`, `RestrictSUIDSGID`, `RestrictRealtime`,
+`LockPersonality`, `MemoryDenyWriteExecute` — was each tested against both ssh
+and `flatpak run`. Measured on Fedora 44, systemd 258, OpenSSH 10.2,
+flatpak 1.16.

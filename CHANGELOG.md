@@ -5,6 +5,22 @@ wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
 ## [Nieopublikowane]
 
+### Naprawione
+
+- **Kafelek Screencast nie działał wcale.** `RestrictNamespaces=true` w unicie
+  odcinało flatpakowi możliwość zbudowania piaskownicy, więc uruchomienie
+  Sunshine'a padało natychmiast na `bwrap: No permissions to create a new
+  namespace`. Demon czekał wtedy pełne 30 sekund i meldował „Sunshine did not
+  start”.
+
+  To ten sam błąd co wcześniej z `ProtectSystem` i ssh: utwardzenie nałożone
+  na usługę, której zadaniem jest uruchamianie innych programów. Pozostałe
+  ograniczenia zostały przetestowane pojedynczo — tym razem przeciwko obu
+  rzeczom, które demon odpala: `ssh` i `flatpak run`.
+
+  Zweryfikowane po poprawce: `starting` → `streaming` w 32 s, wyłączenie
+  w 2 s.
+
 ### Zmienione
 
 - **`setup.cfg` jest teraz źródłem prawdy dla konfiguracji.** Każdy przebieg
