@@ -4,6 +4,6 @@
   "description": "A remote for a rooted LG webOS TV in the Quick Settings panel: power, volume, track skip and screencast. Talks to the lgtvd background service over D-Bus, so the shell never blocks on the network.",
   "shell-version": ["49", "50"],
   "session-modes": ["user"],
-  "url": "https://github.com/maniumek/lgtv-remote-widget",
+  "url": "https://github.com/Manomenu/lgtv-remote-widget",
   "version-name": "1.0.0"
 }

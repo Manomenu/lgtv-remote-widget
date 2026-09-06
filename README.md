@@ -64,7 +64,7 @@ install it. If you do not want the screencast button at all, set
 ## Install
 
 ```sh
-git clone https://github.com/maniumek/lgtv-remote-widget ~/repos/lgtv-remote-widget
+git clone https://github.com/Manomenu/lgtv-remote-widget ~/repos/lgtv-remote-widget
 cd ~/repos/lgtv-remote-widget
 cp setup.cfg.example setup.cfg     # fill in your TV's SSH host, MAC and broadcast address
 ./setup.sh
