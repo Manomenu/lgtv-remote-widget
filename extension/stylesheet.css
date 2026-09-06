@@ -33,10 +33,14 @@
   font-size: 0.818em;
 }
 
+/* Kolor NIE jest tu zapisany na sztywno, i to jest istotne: panel Quick
+ * Settings w jasnym motywie ma jasne tło, więc twardy biały tekst znikał
+ * na nim całkowicie. Dziedziczymy kolor tekstu po motywie i tylko go
+ * przygaszamy — czytelny tak samo w ciemnym, jak w jasnym. */
 .lgtv-header-status {
   font-weight: 400;
   font-size: 0.818em;
-  color: st-transparentize(#ffffff, 0.35);
+  opacity: 0.65;
 }
 
 .lgtv-dot {
@@ -63,7 +67,7 @@
 .lgtv-group .quick-toggle-has-menu,
 .lgtv-group .quick-slider {
   min-width: 0;
-  max-width: auto;
+  max-width: none;
 }
 
 .lgtv-media-button {

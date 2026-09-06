@@ -202,6 +202,21 @@ class LgtvGroup extends St.BoxLayout {
 
     // -- stan -----------------------------------------------------------------
 
+    /* Włącza albo wyłącza element razem z jego wyglądem.
+     *
+     * Samo `reactive = false` gasi tylko wejście: kafelek nadal wygląda na
+     * w pełni sprawny, po prostu nie reaguje na kliknięcia — czyli wygląda
+     * na zawieszony, a nie na wyłączony. Pseudoklasa `insensitive` to to,
+     * czego Shell używa u siebie i co motyw umie przygasić. */
+    _setEnabled(actor, enabled) {
+        actor.reactive = enabled;
+        actor.can_focus = enabled;
+        if (enabled)
+            actor.remove_style_pseudo_class('insensitive');
+        else
+            actor.add_style_pseudo_class('insensitive');
+    }
+
     sync() {
         const client = this._client;
         const power = client.powerState;
@@ -226,25 +241,29 @@ class LgtvGroup extends St.BoxLayout {
         else
             this.add_style_class_name('lgtv-group-asleep');
 
+        // Kafelek zasilania NIE powtarza stanu w podtytule: ten sam napis stoi
+        // już w nagłówku, dwa centymetry wyżej, i jest liczony z tego samego
+        // słownika. O tym, czy telewizor działa, mówi tu podświetlenie kafelka
+        // — dokładnie tak, jak systemowy kafelek Wi-Fi, który też nie dopisuje
+        // pod sobą "Connected".
         this._power.checked = awake;
-        this._power.subtitle = reachable ? POWER_LABEL[power] ?? power : 'Unavailable';
-        this._power.reactive = reachable && !client.busy;
+        this._setEnabled(this._power, reachable && !client.busy);
 
+        // Strumieniowanie zostaje z podtytułem: nagłówek go nie pokazuje,
+        // a "Ready" i "Streaming" to naprawdę różne rzeczy.
         this._cast.checked = cast === 'streaming';
         this._cast.subtitle = reachable ? CAST_LABEL[cast] ?? cast : 'Unavailable';
-        this._cast.reactive = reachable && awake && !client.busy;
+        this._setEnabled(this._cast, reachable && awake && !client.busy);
 
         const volume = client.volume;
         this._syncing = true;
         this._volume.slider.value = volume >= 0 ? volume / 100 : 0;
         this._syncing = false;
         this._volume.iconName = volumeIcon(volume, client.muted);
-        this._volume.reactive = reachable && awake;
+        this._setEnabled(this._volume, reachable && awake);
         this._volume.slider.reactive = reachable && awake;
 
-        for (const button of [this._previous, this._next]) {
-            button.reactive = reachable && awake;
-            button.can_focus = reachable && awake;
-        }
+        for (const button of [this._previous, this._next])
+            this._setEnabled(button, reachable && awake);
     }
 });
