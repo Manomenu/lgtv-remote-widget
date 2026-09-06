@@ -145,9 +145,16 @@ class Daemon:
         target = "turning-on" if on else "turning-off"
         self._update(PowerState=target, LastError="")
 
-        # Numer epoki wypełnia się przy zgłoszeniu zadania, a zadanie ruszy
-        # dopiero po nim — dzięki temu nie musimy zgadywać go z góry.
-        token: dict[str, int] = {}
+        # Numer epoki znamy dopiero z submit(), a zadanie może ruszyć już
+        # w chwili trafienia do kolejki — czyli ZANIM przypisanie poniżej
+        # zdąży się wykonać. Wartość początkowa jest więc konieczna: bez niej
+        # cancelled() sięgało po nieistniejący klucz i przy niekorzystnym
+        # przeplataniu wątków przerywało operację KeyError-em.
+        #
+        # -1 nie równa się żadnej prawdziwej epoce, więc zadanie zastane
+        # w tej szczelinie uzna się za unieważnione i zejdzie z drogi
+        # następnemu — a to jest dokładnie ta odpowiedź, która nie szkodzi.
+        token: dict[str, int] = {"epoch": -1}
 
         def job() -> None:
             def tick(seen: str) -> None:
@@ -163,6 +170,21 @@ class Daemon:
                 )
             except power.PowerError as exc:
                 if str(exc) == "cancelled":
+                    # Zdejmujemy stan przejściowy, zanim oddamy sterowanie.
+                    # poll() celowo omija "turning-on"/"turning-off", żeby nie
+                    # deptać trwającej operacji — więc gdyby zostawić tu ten
+                    # stan, NIKT by go już nie zdjął i pilot zostawałby
+                    # zablokowany (kafelek wyłączony przez `busy`) aż do
+                    # restartu demona. Licznik epok jest wspólny z castem,
+                    # więc anulować potrafi nas samo kliknięcie Screencastu.
+                    try:
+                        seen = tv.power_state(self.transport)
+                    except Exception:
+                        # Nie wiemy, jak jest — ale "offline" da się kliknąć,
+                        # a "turning-on" nie. Przy wyborze między myłką
+                        # a zakleszczeniem wybieramy myłkę; poll i tak poprawi.
+                        seen = "offline"
+                    self._update(PowerState=seen)
                     return
                 self._fail(str(exc))
                 self.poll()
@@ -238,7 +260,7 @@ class Daemon:
             return
 
         self._update(CastState="starting" if on else "stopping", LastError="")
-        token: dict[str, int] = {}
+        token: dict[str, int] = {"epoch": -1}   # patrz set_power
 
         def job() -> None:
             action = cast.start if on else cast.stop
@@ -247,6 +269,14 @@ class Daemon:
                        cancelled=lambda: self.worker.superseded(token["epoch"]))
             except cast.CastError as exc:
                 if str(exc) == "cancelled":
+                    # Anulowanie zostawiało CastState na "starting"/"stopping",
+                    # a widget trzyma w tym stanie kafelek wyłączony — więc do
+                    # następnego odpytania (nawet 30 s) nie dało się kliknąć
+                    # niczego. Licznik epok jest WSPÓLNY dla zasilania
+                    # i strumieniowania, więc anulować potrafi nas także
+                    # kliknięcie Power, po którym nikt naszego stanu nie
+                    # posprząta. Pytamy więc telewizor, jak jest naprawdę.
+                    self._refresh_cast_state()
                     return
                 self._fail(str(exc))
                 self.poll()
@@ -255,6 +285,22 @@ class Daemon:
 
         token["epoch"] = self.worker.submit(
             "set_cast", job, supersedes=True, fields={"arg": "on" if on else "off"})
+
+    def _refresh_cast_state(self) -> None:
+        """Ustala bieżący stan strumieniowania, nie rzucając.
+
+        Wołane po anulowaniu, kiedy zadanie kończy się bez wyniku i stan
+        przejściowy nie ma kto zdjąć.
+        """
+        if not self.cfg.cast_enabled:
+            self._update(CastState="stopped")
+            return
+        try:
+            state = cast.state(self.transport, self.cfg, tv_awake=self.awake)
+        except Exception as exc:
+            log.debug("cast probe after cancelling failed: %s", exc)
+            return
+        self._update(CastState=state)
 
     # -- cykl życia ------------------------------------------------------------
 

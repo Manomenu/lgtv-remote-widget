@@ -277,3 +277,81 @@ def test_the_volume_job_does_not_block_the_queue(daemon, monkeypatch):
     elapsed = time.monotonic() - started
 
     assert elapsed < 1.0, f"the volume path slept for {elapsed:.1f}s"
+
+
+# -- anulowanie nie zostawia stanu przejściowego -------------------------------
+
+
+def _cancels(transport, cfg, **kwargs):
+    """Zaślepka operacji zasilania, która wykrywa unieważnienie i przerywa."""
+    assert kwargs["cancelled"](), "the test worker must report the job as superseded"
+    raise daemon_mod.power.PowerError("cancelled")
+
+
+def _cancels_cast(transport, cfg, **kwargs):
+    """To samo dla strumieniowania."""
+    assert kwargs["cancelled"](), "the test worker must report the job as superseded"
+    raise daemon_mod.cast.CastError("cancelled")
+
+
+class CancellingWorker(InlineWorker):
+    """Kolejka, w której KAŻDE zadanie zastaje się już unieważnione.
+
+    Odtwarza to, co w praktyce robi drugie kliknięcie: licznik epok jest
+    wspólny dla zasilania i strumieniowania, więc kliknięcie Screencastu
+    unieważnia trwające włączanie telewizora i odwrotnie.
+    """
+
+    def superseded(self, epoch):
+        return True
+
+
+def test_a_cancelled_power_job_does_not_leave_the_state_stuck(monkeypatch):
+    """Sedno: poll() celowo omija turning-on/turning-off.
+
+    Gdyby anulowane zadanie zostawiło tam stan, nikt by go już nie zdjął —
+    widget trzymałby kafelek wyłączony (busy) aż do restartu demona, czyli
+    pilot przestawałby działać zupełnie.
+    """
+    d = daemon_mod.Daemon(Config(host="tv", mac="aa:bb:cc:dd:ee:ff"))
+    d.transport = FakeTransport()
+    d.worker = CancellingWorker()
+
+    monkeypatch.setattr(daemon_mod.tv, "power_state", lambda transport: "standby")
+    monkeypatch.setattr(daemon_mod.power, "turn_on", _cancels)
+
+    d.set_power(True)
+
+    assert d.get("PowerState") == "standby", "a cancelled job must clear the transient state"
+    assert not d.get("PowerState").startswith("turning-")
+
+
+def test_a_cancelled_power_job_survives_an_unreachable_tv(monkeypatch):
+    """Nawet gdy nie da się zapytać telewizora, stan przejściowy musi zniknąć."""
+    d = daemon_mod.Daemon(Config(host="tv", mac="aa:bb:cc:dd:ee:ff"))
+    d.transport = FakeTransport()
+    d.worker = CancellingWorker()
+
+    def boom(transport):
+        raise RuntimeError("the TV is gone")
+
+    monkeypatch.setattr(daemon_mod.tv, "power_state", boom)
+    monkeypatch.setattr(daemon_mod.power, "turn_on", _cancels)
+
+    d.set_power(True)
+    assert d.get("PowerState") == "offline"
+
+
+def test_a_cancelled_cast_job_does_not_leave_the_tile_disabled(monkeypatch):
+    """To samo dla strumieniowania: "starting" blokuje kafelek."""
+    d = daemon_mod.Daemon(Config(host="tv"))
+    d.transport = FakeTransport()
+    d.worker = CancellingWorker()
+
+    monkeypatch.setattr(daemon_mod.cast, "state", lambda *a, **k: "ready")
+    monkeypatch.setattr(daemon_mod.cast, "start", _cancels_cast)
+
+    d._update(PowerState="active")
+    d.set_cast(True)
+
+    assert d.get("CastState") == "ready", "a cancelled job must clear 'starting'"

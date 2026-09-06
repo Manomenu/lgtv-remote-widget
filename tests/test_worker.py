@@ -107,3 +107,34 @@ def test_a_long_command_does_not_cancel_short_ones():
     assert done.wait(5)
     assert ran == ["key", "power"]
     worker.stop()
+
+
+def test_a_job_may_start_before_submit_has_returned():
+    """Zadanie potrafi ruszyć, zanim zgłaszający zdąży zapisać numer epoki.
+
+    daemon.set_power/set_cast zapisują epokę do słownika DOPIERO po powrocie
+    z submit(), a cancelled() czyta ją z wnętrza zadania. Kolejka budzi wątek
+    już przy queue.put(), więc między jednym a drugim jest szczelina — i to
+    w niej cancelled() sięgało po nieistniejący klucz, przerywając operację
+    KeyError-em. Wartość początkowa w słowniku zamyka tę szczelinę.
+    """
+    worker = Worker()
+    worker.start()
+
+    token = {"epoch": -1}
+    looked = threading.Event()
+    seen = {}
+
+    def job():
+        seen["epoch"] = token["epoch"]     # bez wartości początkowej: KeyError
+        looked.set()
+
+    epoch = worker.submit("set_power", job, supersedes=True, log_action=False)
+    assert looked.wait(5)
+    token["epoch"] = epoch
+
+    # Zadanie zastane w szczelinie widzi -1, czyli "unieważnione" — odpowiedź,
+    # która każe mu zejść z drogi, a nie wywalić się.
+    assert seen["epoch"] == -1
+    assert worker.superseded(-1)
+    worker.stop()
