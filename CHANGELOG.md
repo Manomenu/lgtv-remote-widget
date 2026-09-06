@@ -7,6 +7,27 @@ wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
 ### Naprawione
 
+- **Kliknięcie w głośniczek nie wyciszało.** Wołałem `setMuted {"muted": …}`,
+  bo odczyt zwraca pole `muteStatus` i symetryczna nazwa wydawała się
+  oczywista. Na tym firmwarze metoda nazywa się **`muteVolume`**, a jej
+  parametr **`mute`**. Sprawdzone: `setMuted`, `setMute`, `setSoundOutputMute`
+  ani ten sam wywołanie bez `/master` nie istnieją.
+
+  Strona interfejsu działała od początku — kliknięcia dochodziły do demona
+  i lądowały w `errors.log` jako `Unknown method "setMuted"`. To jest dokładnie
+  ten rodzaj usterki, dla którego ten plik powstał.
+
+  To prawdziwe wyciszenie, nie zerowanie głośności: telewizor pamięta poziom
+  i wraca do niego przy odciszeniu.
+
+### Zmienione
+
+- **Wyciszony suwak pokazuje zero**, choć telewizor pamięta swój poziom — tak
+  zachowuje się systemowy suwak głośności. Ruszenie suwakiem odcisza, żeby nie
+  dało się go przestawiać w ciszy bez wiadomego powodu.
+
+### Naprawione (wcześniej)
+
 - **Odświeżanie stanu przy otwarciu panelu nie działało wcale.** `SetActive`
   było wołane z rozszerzenia, ale brakowało go w XML-u interfejsu, z którego
   `Gio.DBusProxy.makeProxyWrapper` generuje metody proxy. `SetActiveAsync` było

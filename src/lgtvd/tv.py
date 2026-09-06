@@ -59,7 +59,17 @@ def set_volume(transport: Transport, value: int) -> int:
 
 
 def set_mute(transport: Transport, muted: bool) -> None:
-    call_ok(transport, AUDIO, "setMuted", {"muted": bool(muted)})
+    """Wycisza i odcisza.
+
+    Metoda nazywa się ``muteVolume``, a jej parametr ``mute`` — nie
+    ``setMuted``/``muted``, jak można by się spodziewać po tym, że odczyt
+    zwraca pole ``muteStatus``. Sprawdzone na tym firmwarze: pozostałe nazwy
+    odpowiadają „Unknown method”.
+
+    To prawdziwe wyciszenie, nie zerowanie głośności: poziom zostaje
+    zapamiętany i wraca przy odciszeniu.
+    """
+    call_ok(transport, AUDIO, "muteVolume", {"mute": bool(muted)})
 
 
 def foreground_app(transport: Transport) -> str:

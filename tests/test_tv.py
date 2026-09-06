@@ -81,3 +81,26 @@ def test_garbage_reply_is_reported_as_an_ssh_problem():
     transport = FakeTransport({"getPowerState": "sh: luna-send: not found"})
     # Nie da się tego odróżnić od milczącej szyny, więc pytamy o SSH.
     assert tv.power_state(transport) == "standby"
+
+
+def test_mute_uses_the_method_this_firmware_actually_has():
+    """``setMuted`` nie istnieje — nazwa to ``muteVolume``, a parametr ``mute``.
+
+    Odczyt zwraca pole ``muteStatus``, więc symetryczna nazwa setera wygląda
+    na oczywistą i jest błędna. Ten test trzyma zmierzoną nazwę na miejscu.
+    """
+    sent = []
+
+    class Recorder(FakeTransport):
+        def check(self, command, timeout=None):
+            sent.append(command)
+            return '{"returnValue":true}'
+
+    tv.set_mute(Recorder(), True)
+    assert "muteVolume" in sent[0]
+    assert '"mute":true' in sent[0]
+    assert "setMuted" not in sent[0]
+
+    sent.clear()
+    tv.set_mute(Recorder(), False)
+    assert '"mute":false' in sent[0]

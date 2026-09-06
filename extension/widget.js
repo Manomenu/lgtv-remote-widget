@@ -181,6 +181,11 @@ class LgtvGroup extends St.BoxLayout {
         this._sliderId = this._volume.slider.connect('notify::value', () => {
             if (this._syncing)
                 return;
+            // Ruszenie suwakiem odcisza — tak samo jak systemowy suwak
+            // głośności. Inaczej dałoby się go przestawiać w ciszy i nie
+            // było wiadomo, dlaczego nic nie słychać.
+            if (this._client.muted)
+                this._client.setMute(false);
             this._client.setVolume(Math.round(this._volume.slider.value * 100));
         });
         return this._volume;
@@ -263,9 +268,13 @@ class LgtvGroup extends St.BoxLayout {
         this._cast.setChecked(cast === 'streaming');
         this._setEnabled(this._cast, reachable && awake && !client.busy);
 
+        // Wyciszony telewizor pokazuje suwak na zerze, choć sam pamięta swój
+        // poziom — tak zachowuje się systemowy suwak głośności i tego się po
+        // nim spodziewamy. Właściwa wartość wraca przy odciszeniu, bo bierze
+        // się z telewizora, nie z pozycji uchwytu.
         const volume = client.volume;
         this._syncing = true;
-        this._volume.slider.value = volume >= 0 ? volume / 100 : 0;
+        this._volume.slider.value = (client.muted || volume < 0) ? 0 : volume / 100;
         this._syncing = false;
         this._volume.iconName = volumeIcon(volume, client.muted);
         // Suwak przechodzi przez ten sam helper co reszta, bo sam uchwyt jest

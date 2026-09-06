@@ -99,6 +99,16 @@ makes a real slider possible; `getVolume` also reports `muteStatus`, which the
 slider's icon uses. The scale is 0-100 but useful listening levels sit in the
 low teens.
 
+Muting is **`muteVolume {"mute": bool}`**. The symmetric-looking name suggested
+by the reader (`setMuted {"muted": …}`, matching the `muteStatus` field it
+returns) does not exist — nor do `setMute`, `setSoundOutputMute` or the same
+call on `com.webos.service.audio` without `/master`. All of them answer
+`Unknown method`, which is a reply, not a crash, so a caller that does not check
+`returnValue` sees nothing wrong at all.
+
+It is a real mute: the volume level is kept and comes back on unmute, so there
+is no need to remember it on this side.
+
 ## Notifications
 
 `createToast` works; `closeToast` does not. webOS decides when a notification
