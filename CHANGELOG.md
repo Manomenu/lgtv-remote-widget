@@ -9,10 +9,46 @@ Wynik przeglądu wydania 1.0.0. Każda pozycja to osobny commit, dobrany tak,
 żeby dało się je przyjmować i odrzucać pojedynczo — kolejność nie jest
 wymuszona poza tym, co poniżej opisane jako zależne.
 
-Testów przybyło z 19 do 50. Każda poprawka niosąca ryzyko regresji ma test,
+Testów przybyło z 19 do 65. Każda poprawka niosąca ryzyko regresji ma test,
 który sprawdzono również w drugą stronę: pada na kodzie sprzed zmiany.
 
+Przegląd szedł dwiema turami; druga (commity `17f8fad`–`4ac5dbe`) wyszła od
+ponownego przeczytania kodu po poprawkach z pierwszej i znalazła cięższe
+rzeczy niż ona sama — w tym jedyną usterkę, która potrafiła unieruchomić
+pilota na stałe.
+
 ### Naprawione
+
+- **Pilot potrafił zablokować się na stałe** (`0f95ff4`) — anulowane zadanie
+  zasilania robiło `return`, zostawiając `PowerState` na `turning-on`/
+  `turning-off`. `poll()` celowo omija te stany, żeby nie deptać trwającej
+  operacji, więc nikt już tego nie zdejmował, a widget trzyma w nich kafelek
+  wyłączony. Pilot przestawał działać do restartu demona.
+
+  Wyzwalacz nie jest teoretyczny: licznik epok jest **wspólny** dla zasilania
+  i strumieniowania, więc kliknięcie Screencastu w trakcie włączania telewizora
+  unieważnia włączanie — i nikt po nim nie sprząta. `CastState` miał ten sam
+  problem, łagodniejszy, bo `poll()` akurat ten stan nadpisuje: kafelek był
+  wyłączony do następnego odpytania, czyli nawet 30 s.
+
+- **Wyścig przy anulowaniu** (`0f95ff4`) — `token["epoch"]` było przypisywane
+  po powrocie z `submit()`, a kolejka budzi wątek roboczy już przy
+  `queue.put()`. Zadanie zastane w tej szczelinie sięgało w `cancelled()` po
+  nieistniejący klucz i przerywało operację `KeyError`-em. Szczelina
+  potwierdzona eksperymentalnie na prawdziwym `Workerze`.
+
+- **Strażnik „czy demon żyje” nie działał** (`17f8fad`) — `_call()` sprawdzał
+  `available` we własnym ciele, ale wywołania miały postać
+  `_call('X', this._proxy.XAsync(...))`, a argumenty liczą się **przed**
+  wejściem do funkcji. Przy nieuruchomionym demonie `_proxy` jest `null`, więc
+  strażnik nie miał szans zadziałać. Kafelki są wtedy wyłączone, ale
+  `refresh()` jest wołane bezwarunkowo przy **każdym** otwarciu panelu —
+  czyli bez demona każde otwarcie sypało `TypeError`-em do dziennika Shella.
+
+- **Wyłączony suwak nadal łapał klawiaturę** (`17f8fad`) — ustawiane było samo
+  `slider.reactive`, a sam uchwyt to osobny aktor i to on przyjmuje fokus.
+  Wyłączony suwak zostawał w kolejce fokusa i dawało się go przestawić
+  strzałkami po dojściu Tabem.
 
 - **Poller nie działał wcale** (`d02887c`) — `__main__.tick()` wołał
   `worker.submit(..., user_action=False)`, a `Worker.submit` ma parametr
@@ -102,12 +138,26 @@ który sprawdzono również w drugą stronę: pada na kodzie sprzed zmiany.
   Oba czytają źródło przez AST zamiast importu, żeby działały tam, gdzie nie
   ma PyGObject.
 
+- **`tests/test_cast.py`** (`4ac5dbe`) — rozpoznawanie stanu strumieniowania to
+  najbardziej podchwytliwa część projektu: `CLIENT DISCONNECTED` zawiera
+  w sobie `CONNECTED`, zerwanie po stronie PipeWire nie zapisuje się jako
+  rozłączenie klienta, a milczący telewizor nie może podnieść stanu do
+  `streaming`. Wszystkie trzy pułapki mają teraz test.
+
 - **`tests/test_power.py`** (`ee8fc16`) — moduł nie miał żadnych testów, a jest
   w nim pułapka, o którą łatwo się potknąć przy refaktorze: `KEY_POWER` to
   przełącznik, nie wyłącznik, więc powtórzony po zgaśnięciu telewizora
   włączyłby go z powrotem. Testy pilnują tego ograniczenia, kształtu pakietu
   budzącego i samej pętli czekania. Zegar jest podstawiany — nic tu naprawdę
   nie śpi, całość biegnie w ułamku sekundy.
+
+### Uporządkowane
+
+- **`cast.py`: jedno miejsce na czytanie ogona dziennika** (`4ac5dbe`) —
+  `_last_event` i `_count_connects` miały po siedem identycznych linii
+  otwierania pliku, skakania na koniec i cofania się o `_TAIL_BYTES`. Wspólne
+  `_tail()` zostawia w obu funkcjach to, po co naprawdę istnieją. Zachowanie
+  bez zmian.
 
 ### Udokumentowane
 
