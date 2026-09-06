@@ -17,13 +17,49 @@ Dark Style, in the same style.
 When the TV is off the panel dims but stays put, and the power button stays
 live — that is the one moment you actually reach for a remote.
 
-## What you need
+## Requirements
 
-- GNOME 49 or 50 (Fedora 41+, Ubuntu 25.04+)
-- An LG webOS TV you can reach over SSH as `root`, with an entry in `~/.ssh/config`
-- **Wake-on-LAN** switched on in the TV, if you want to turn it on from here:
-  *Settings → Support → IP Control Settings*
-- For the screencast tile only: Sunshine on this computer, Moonlight on the TV
+**None of this is installed for you.** `setup.sh` checks for each item and
+stops with a message naming what is missing, rather than half-installing and
+failing later.
+
+### On this computer
+
+| What | Version | Check / install |
+|---|---|---|
+| GNOME Shell | 49 or 50 | `gnome-shell --version` |
+| Wayland session | — | GNOME's default; `echo $XDG_SESSION_TYPE` |
+| Python | 3.11 or newer | `python3 --version` |
+| PyGObject | any | `sudo dnf install python3-gobject-base` |
+| OpenSSH client | any | `ssh -V` |
+
+Built and tested on Fedora 44, GNOME Shell 50.4, Python 3.14.7.
+
+### On the TV
+
+| What | Why it is needed | How |
+|---|---|---|
+| **Rooted webOS** with Homebrew Channel | everything here is done over SSH as `root`; without root there is no way in | [webosbrew.org](https://www.webosbrew.org/) |
+| **SSH key, no password** | the service runs unattended, so a password prompt would simply hang it | `ssh-copy-id root@<tv>` |
+| Entry in `~/.ssh/config` | you put its name in `setup.cfg` | see below |
+| **Wake-on-LAN** enabled | needed to switch the TV **on**; switching it off works without it | *Settings → Support → IP Control Settings* |
+
+```
+Host lgtv-root
+    HostName 192.168.1.42
+    User root
+```
+
+### Only for the screencast button
+
+| What | Where | How |
+|---|---|---|
+| **Sunshine** | this computer | `flatpak install flathub dev.lizardbyte.app.Sunshine` |
+| **Moonlight** | the TV | Homebrew Channel → Moonlight |
+
+The widget starts Sunshine for you when you press the button, but it will not
+install it. If you do not want the screencast button at all, set
+`enabled = false` under `[cast]` in `setup.cfg` and it disappears from the panel.
 
 ## Install
 
