@@ -1,144 +1,83 @@
 # LG TV Remote
 
-A remote for a rooted LG webOS TV, living in the GNOME Quick Settings panel:
-power, volume, track skip and screen streaming — in the same place as Wi-Fi and
-Dark Style, styled by the same theme.
+Your LG TV in the GNOME Quick Settings panel — the same place as Wi-Fi and
+Dark Style, in the same style.
 
-| TV awake | TV off or off the network |
+| TV on | TV off or unplugged |
 |---|---|
 | ![the widget in the panel](docs/widget.png) | ![the widget greyed out](docs/widget-offline.png) |
 
-When the TV is unreachable the group dims but stays put, and the power tile
-stays live — that is the one state in which you actually reach for a remote.
+## What it does
 
-Tested on Fedora 44, GNOME Shell 50.4, Wayland.
+- **Power** — switches the TV on and off, and waits until it really happened
+- **Volume** — a proper slider; click the speaker to mute, move the slider to unmute
+- **Skip** — previous and next track, for whatever is playing on the TV
+- **Screencast** — throws this computer's screen onto the TV and takes it back
 
-## How it works
+When the TV is off the panel dims but stays put, and the power button stays
+live — that is the one moment you actually reach for a remote.
 
-```
-GNOME Shell extension  ──D-Bus──▶  lgtvd  ──ssh──▶  the TV
-   (drawing only)                (all the waiting)
-```
+## What you need
 
-The split is the point. GJS in the shell is single-threaded, and turning the TV
-on can take 90 seconds. If the extension did that work itself it would freeze
-the whole desktop — clock, window switching and all. So the service absorbs the
-latency, holds one persistent SSH connection, and the shell only ever reads a
-value that is already known.
-
-That single connection is also why the volume slider feels immediate: opening a
-fresh SSH session costs ~150 ms, sending a command down an open one costs ~30.
-
-## Requirements
-
-- GNOME Shell 49 or 50 on Wayland
-- Python 3.11+ and PyGObject (`sudo dnf install python3-gobject-base`) — nothing else
-- A rooted LG webOS TV reachable over SSH as `root`, with an entry in `~/.ssh/config`
-- Wake-on-LAN enabled on the TV (*Settings → Support → IP Control Settings*), for powering on
-- Optional, for the screencast tile: Sunshine on this machine, Moonlight on the TV
+- GNOME 49 or 50 (Fedora 41+, Ubuntu 25.04+)
+- An LG webOS TV you can reach over SSH as `root`, with an entry in `~/.ssh/config`
+- **Wake-on-LAN** switched on in the TV, if you want to turn it on from here:
+  *Settings → Support → IP Control Settings*
+- For the screencast tile only: Sunshine on this computer, Moonlight on the TV
 
 ## Install
 
 ```sh
 git clone https://github.com/maniumek/lgtv-remote-widget ~/repos/lgtv-remote-widget
 cd ~/repos/lgtv-remote-widget
-cp setup.cfg.example setup.cfg     # fill in host, MAC and broadcast address
+cp setup.cfg.example setup.cfg     # fill in your TV's SSH host, MAC and broadcast address
 ./setup.sh
 ```
 
-Then log out and back in. Wayland cannot reload GNOME Shell in place, so there
-is no way around it.
+Then **log out and back in** — GNOME only picks up new panel widgets when your
+session starts.
 
-`setup.sh` is idempotent and needs no root. **`setup.cfg` is the file you
-edit**; every run copies it verbatim to `~/.config/lgtv-remote/config.ini`, so
-there is one place to change a setting and one command to apply it:
+## Changing a setting
+
+Edit `setup.cfg`, run `./setup.sh` again. That is the whole loop; the installer
+copies the file into place for you.
 
 ```sh
 $EDITOR setup.cfg && ./setup.sh
 ```
 
-If the installed copy differed from `setup.cfg` it is kept once as
-`config.ini.bak` before being replaced. Without a `setup.cfg` the installer
-falls back to leaving an existing configuration alone, or — on a first run —
-starting from the template and seeding the host, MAC and broadcast address
-from `~/scripts/lgtv/lgtv.env` when that file exists.
+## When something looks wrong
 
-To try it without logging out:
+The widget says what it knows, and the rest is in two log files.
 
-```sh
-dbus-run-session -- gnome-shell --nested --wayland
-```
-
-## Where things live
-
-Standard XDG locations — nothing is read from the repository at runtime.
-
-| What | Where |
+| What you see | What it means |
 |---|---|
-| Settings you edit | `setup.cfg` in this repository (git-ignored) |
-| Settings the service reads | `~/.config/lgtv-remote/config.ini` (mode 0600, a copy of the above) |
-| Logs | `~/.local/state/lgtv-remote/{actions,errors}.log` |
-| Extension | `~/.local/share/gnome-shell/extensions/lgtv-remote@maniumek` → this repo |
-| Service | `~/.config/systemd/user/lgtv-remote.service` |
-| SSH control socket | `$XDG_RUNTIME_DIR/lgtv-remote/` |
-
-Settings are resolved weakest to strongest: built-in defaults →
-`/etc/xdg/lgtv-remote/config.ini` → your file → environment variables → command
-line. So a one-off override needs no editing at all:
+| **Service not running** | the background service is not up: `systemctl --user status lgtv-remote` |
+| **Off**, but the TV is on | it was switched on with the physical remote; the widget catches up the moment you open the panel |
+| Everything greyed but Power | the TV is off or off the network — press Power |
 
 ```sh
-LGTV_HOST=other-tv ./bin/lgtvd
+tail -f ~/.local/state/lgtv-remote/actions.log    # one line per button press
+cat ~/.local/state/lgtv-remote/errors.log         # only the things that failed
 ```
-
-## Everyday use
-
-```sh
-systemctl --user status lgtv-remote      # is it running
-journalctl --user -u lgtv-remote -f      # what is it doing
-tail -f ~/.local/state/lgtv-remote/actions.log
-```
-
-`actions.log` gets one line per action, meant to be read by eye:
-
-```
-2026-09-06T15:31:29+0200 action=media_key key=next code=208 result=ok duration=0.2s
-```
-
-Everything the widget can do is also reachable from a terminal — see
-[docs/dbus-api.md](docs/dbus-api.md).
-
-## What changed
-
-Release history and the reasoning behind each change live in
-[CHANGELOG.md](CHANGELOG.md).
 
 ## Uninstall
 
 ```sh
-./uninstall.sh --dry-run    # show what would happen
-./uninstall.sh              # remove the installation, keep settings and logs
+./uninstall.sh --dry-run    # show what would be removed
+./uninstall.sh              # remove it, keep your settings and logs
 ./uninstall.sh --purge      # remove everything
 ```
 
-## Notes on the TV itself
+## How it works, briefly
 
-The awkward parts of webOS — why `luna-send` needs `< /dev/null`, why only one
-of seven input devices actually delivers key presses, why there is no
-next-track key — are written down in [docs/webos-notes.md](docs/webos-notes.md),
-along with how each was measured.
+A small background service does the talking to the TV over SSH and holds one
+connection open, so the buttons respond instantly. The panel widget only draws
+what the service already knows — which is why switching the TV on, a job that
+can take a minute and a half, never freezes your desktop.
 
-## Layout
+The service is asleep while the panel is closed and wakes when you open it, so
+nothing pesters the TV in the background.
 
-```
-bin/lgtvd                 run the service straight from the repository
-src/lgtvd/                the service
-  ssh.py                  one shared SSH connection
-  luna.py                 calling webOS services, with the traps handled
-  tv.py power.py cast.py keys.py    what the TV can be asked to do
-  daemon.py worker.py     state model and the single command queue
-  dbus.py                 the session-bus interface
-extension/                the GNOME Shell extension (drawing only)
-systemd/                  the user service template
-docs/                     D-Bus interface and measured TV behaviour
-tests/                    unit tests for the parts that need no TV
-```
+For the details — the D-Bus interface, and the surprising things this TV does —
+see [`docs/`](docs/).
