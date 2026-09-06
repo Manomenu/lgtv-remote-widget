@@ -67,8 +67,11 @@ def main(argv: list[str] | None = None) -> int:
     # Poller sam ustala, kiedy obudzić się następnym razem: częściej przy
     # otwartym panelu i w trakcie operacji, rzadko w spoczynku.
     def tick() -> bool:
-        daemon.worker.submit("poll", daemon.poll, user_action=False)
+        # Kolejne obudzenie planujemy PRZED zgłoszeniem zadania. Gdyby submit
+        # rzucił, harmonogram i tak przetrwa — inaczej jeden wyjątek kasuje
+        # odpytywanie do końca życia procesu, bez żadnego śladu w dzienniku.
         GLib.timeout_add_seconds(daemon.poll_interval(), tick)
+        daemon.worker.submit("poll", daemon.poll, log_action=False)
         return GLib.SOURCE_REMOVE
 
     GLib.timeout_add_seconds(daemon.poll_interval(), tick)
