@@ -6,6 +6,7 @@ odpytywanie w tle, nie zostawiając po sobie nic poza ciszą.
 """
 
 import inspect
+import time
 
 import pytest
 
@@ -258,3 +259,21 @@ def test_every_published_property_has_a_dbus_signature():
     # Ta sama lista musi stać w XML-u, inaczej właściwości nie widać z zewnątrz.
     declared = set(re.findall(r'<property name="(\w+)"', source))
     assert published == declared
+
+
+def test_the_volume_job_does_not_block_the_queue(daemon, monkeypatch):
+    """Głośność nie ma prawa zatrzymywać innych poleceń.
+
+    Throttle był realizowany przez time.sleep() w wątku roboczym, czyli
+    wstrzymywał WSZYSTKO — naciśnięcie „dalej” w trakcie kręcenia głośnością
+    czekało na koniec cudzej pauzy.
+    """
+    monkeypatch.setattr(daemon_mod.tv, "set_volume", lambda transport, value: None)
+
+    daemon.cfg.volume_throttle_ms = 5000
+    started = time.monotonic()
+    daemon.set_volume(30)
+    daemon.set_volume(60)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 1.0, f"the volume path slept for {elapsed:.1f}s"

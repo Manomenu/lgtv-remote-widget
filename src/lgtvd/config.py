@@ -90,6 +90,10 @@ class Config:
     # --- demon ---------------------------------------------------------------
     poll_idle: int = 30
     poll_active: int = 5
+    #: Przyjmowane i ignorowane. Dławieniem zajmuje się samo zlepianie zgłoszeń
+    #: w Daemon.set_volume, więc osobna pauza nie ma już czego chronić — a że
+    #: klucz stoi w plikach, które ludzie mają u siebie, wywalenie go zrobiłoby
+    #: tylko ostrzeżenie z setup.sh o „brakującym” ustawieniu.
     volume_throttle_ms: int = 120
     log_level: str = "INFO"
 

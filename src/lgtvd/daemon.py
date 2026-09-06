@@ -52,7 +52,6 @@ class Daemon:
 
         self._target_volume: int | None = None
         self._volume_queued = False
-        self._last_volume_sent = 0.0
         self._busy_until_idle = False
         self._active_until = 0.0
 
@@ -189,18 +188,22 @@ class Daemon:
         # Zadanie głośności NIE może być unieważnialne: gdyby zostało odrzucone,
         # flaga _volume_queued zostałaby zapalona na zawsze i suwak przestałby
         # cokolwiek wysyłać do końca życia procesu.
+        #
+        # Nie ma tu pauzy i to jest celowe. Dławienie robi już samo zlepianie
+        # zgłoszeń: dopóki to zadanie stoi w kolejce, kolejne ruchy suwaka
+        # tylko podmieniają wartość docelową, więc na całą serię przypada
+        # jedno polecenie do telewizora. Wcześniejszy time.sleep() nie dokładał
+        # do tego nic poza zablokowaniem JEDYNEGO wątku roboczego: naciśnięcie
+        # „dalej” w trakcie kręcenia głośnością czekało do 120 ms na koniec
+        # cudzej pauzy. Odłożenie zadania z powrotem do kolejki zamiast pauzy
+        # też odpada — przy pustej kolejce robi się z tego pętla jałowa.
 
         def job() -> None:
-            wait = self.cfg.volume_throttle_ms / 1000.0
-            elapsed = time.monotonic() - self._last_volume_sent
-            if elapsed < wait:
-                time.sleep(wait - elapsed)
             with self._lock:
                 target = self._target_volume
                 self._volume_queued = False
             if target is None:
                 return
-            self._last_volume_sent = time.monotonic()
             tv.set_volume(self.transport, target)
 
         self.worker.submit("set_volume", job, fields={"value": value})

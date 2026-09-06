@@ -68,8 +68,10 @@ stop_timeout = 20
 poll_idle = 30
 poll_active = 5
 
-# Dragging the slider produces far more events than the TV can absorb, so only
-# the newest value is sent, at most this often.     [LGTV_VOLUME_THROTTLE_MS]
+# Accepted and ignored, kept so upgrading does not warn about a missing key.
+# Dragging the slider produces far more events than the TV can absorb; only the
+# newest value is ever sent, and that is done by coalescing the queued job
+# rather than by pausing.                           [LGTV_VOLUME_THROTTLE_MS]
 volume_throttle_ms = 120
 
 # DEBUG, INFO, WARNING or ERROR.                             [LGTV_LOG_LEVEL]
