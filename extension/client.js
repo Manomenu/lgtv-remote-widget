@@ -24,6 +24,7 @@ const IFACE = `
     <property name="Volume"     type="i" access="read"/>
     <property name="Muted"      type="b" access="read"/>
     <property name="CastState"  type="s" access="read"/>
+    <property name="CastEnabled" type="b" access="read"/>
     <property name="LastError"  type="s" access="read"/>
   </interface>
 </node>`;
@@ -66,6 +67,15 @@ export const LgtvClient = GObject.registerClass({
 
     get castState() {
         return this.available ? this._proxy.CastState ?? 'stopped' : 'stopped';
+    }
+
+    /** Czy strumieniowanie jest w ogóle włączone w konfiguracji.
+     *
+     * Domyślnie true, żeby starszy demon bez tej właściwości zachowywał się
+     * tak jak dotąd — kafelek widoczny.
+     */
+    get castEnabled() {
+        return this.available ? this._proxy.CastEnabled ?? true : true;
     }
 
     get volume() {

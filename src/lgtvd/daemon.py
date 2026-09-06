@@ -39,6 +39,11 @@ class Daemon:
             "Volume": -1,
             "Muted": False,
             "CastState": "stopped",
+            # Stałe przez całe życie procesu, ale wystawione jak reszta: widget
+            # nie ma innego sposobu, żeby dowiedzieć się, że kafelka nie ma po
+            # co rysować. Bez tego jedynym objawem wyłączonego strumieniowania
+            # był kafelek, który nie robi nic.
+            "CastEnabled": cfg.cast_enabled,
             "LastError": "",
         }
         #: Wołane po każdej zmianie stanu, ze słownikiem samych zmian.

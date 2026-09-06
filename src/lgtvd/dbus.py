@@ -31,6 +31,7 @@ INTROSPECTION = f"""
     <property name="Volume"     type="i" access="read"/>
     <property name="Muted"      type="b" access="read"/>
     <property name="CastState"  type="s" access="read"/>
+    <property name="CastEnabled" type="b" access="read"/>
     <property name="LastError"  type="s" access="read"/>
   </interface>
 </node>
@@ -41,6 +42,7 @@ _SIGNATURES = {
     "Volume": "i",
     "Muted": "b",
     "CastState": "s",
+    "CastEnabled": "b",
     "LastError": "s",
 }
 

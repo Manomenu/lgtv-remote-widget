@@ -249,6 +249,13 @@ class LgtvGroup extends St.BoxLayout {
         this._power.checked = awake;
         this._setEnabled(this._power, reachable && !client.busy);
 
+        // Wyłączone w konfiguracji strumieniowanie znika z panelu zamiast
+        // stać tam jako kafelek, który po kliknięciu nie robi nic — to właśnie
+        // obiecuje "set to false to hide the tile" w setup.cfg.example.
+        // Kafelek zostaje zbudowany zawsze, bo demon może się pojawić później
+        // niż widget; ukrywamy go dopiero, gdy demon powie, że go nie chce.
+        this._cast.visible = !reachable || client.castEnabled;
+
         // Strumieniowanie zostaje z podtytułem: nagłówek go nie pokazuje,
         // a "Ready" i "Streaming" to naprawdę różne rzeczy.
         this._cast.checked = cast === 'streaming';

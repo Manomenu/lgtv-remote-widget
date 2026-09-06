@@ -211,3 +211,50 @@ def test_cast_is_refused_when_it_is_switched_off_in_the_configuration():
 def test_stop_closes_the_shared_connection(daemon):
     daemon.stop()
     assert daemon.transport.closed
+
+
+def test_cast_enabled_is_published_so_the_widget_can_hide_the_tile():
+    """setup.cfg.example obiecuje, że wyłączenie castu chowa kafelek.
+
+    Widget nie ma innego sposobu, żeby się o tym dowiedzieć, niż właściwość
+    na szynie — bez niej kafelek zostawał na miejscu i po kliknięciu tylko
+    zwracał błąd.
+    """
+    on = daemon_mod.Daemon(Config(host="tv", cast_enabled=True))
+    off = daemon_mod.Daemon(Config(host="tv", cast_enabled=False))
+    assert on.get("CastEnabled") is True
+    assert off.get("CastEnabled") is False
+
+
+def test_every_published_property_has_a_dbus_signature():
+    """Stan demona, tabela sygnatur i XML introspekcji nie mogą się rozjechać.
+
+    Właściwość dodana tylko po jednej stronie wraca przez szynę jako None, bez
+    żadnego błędu po drodze — widget widzi wtedy pustkę i nie ma jak zgadnąć,
+    dlaczego.
+
+    Czytamy dbus.py przez AST, a nie importem: moduł ciągnie za sobą PyGObject,
+    którego na maszynie budującej może nie być, a ta zgodność nie ma z nim nic
+    wspólnego.
+    """
+    import ast
+    import pathlib
+    import re
+
+    source = (pathlib.Path(__file__).resolve().parents[1]
+              / "src" / "lgtvd" / "dbus.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    signatures = next(
+        ast.literal_eval(node.value)
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(getattr(t, "id", None) == "_SIGNATURES" for t in node.targets)
+    )
+
+    published = set(daemon_mod.Daemon(Config(host="tv")).snapshot())
+    assert published == set(signatures)
+
+    # Ta sama lista musi stać w XML-u, inaczej właściwości nie widać z zewnątrz.
+    declared = set(re.findall(r'<property name="(\w+)"', source))
+    assert published == declared

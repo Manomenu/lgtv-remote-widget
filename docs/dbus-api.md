@@ -16,6 +16,7 @@ the whole reason the service exists.
 | `Volume` | `i` | 0-100, or `-1` when unknown |
 | `Muted` | `b` | |
 | `CastState` | `s` | `streaming`, `ready`, `stopped`, `starting`, `stopping` |
+| `CastEnabled` | `b` | whether `cast.enabled` is on; the widget hides its tile when it is not |
 | `LastError` | `s` | text of the last failure, empty after a successful command |
 
 Changes are announced with the standard
@@ -29,7 +30,7 @@ Changes are announced with the standard
 | `SetVolume` | `i → ()` | Coalesced — only the newest value is sent, at most every 120 ms |
 | `SetMute` | `b → ()` | |
 | `MediaKey` | `s → ()` | `next` or `previous`; anything else is an error |
-| `SetCast` | `b → ()` | Asynchronous, like `SetPower` |
+| `SetCast` | `b → ()` | Asynchronous, like `SetPower`; fails outright when `CastEnabled` is false |
 | `Refresh` | `() → ()` | Poll now and poll faster for the next minute |
 
 ## Driving it from a terminal
