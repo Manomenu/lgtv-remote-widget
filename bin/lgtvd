@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Uruchamia demona prosto z katalogu repozytorium, bez instalowania pakietu.
+#
+# Demon korzysta wyłącznie z biblioteki standardowej i PyGObject (pakiet
+# dystrybucji), więc nie ma czego instalować pip-em ani po co robić venva —
+# venv bez --system-site-packages i tak nie widziałby PyGObject.
+set -euo pipefail
+here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+export PYTHONPATH="$here/src${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m lgtvd "$@"

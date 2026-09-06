@@ -1,0 +1,20 @@
+[project]
+name = "lgtvd"
+version = "1.0.0"
+description = "Background service driving an LG webOS TV over SSH, exposed on the session bus"
+requires-python = ">=3.11"
+# Celowo pusto: demon korzysta wyłącznie z biblioteki standardowej i PyGObject,
+# które jest pakietem dystrybucji. Nie ma czego instalować pip-em, a venv bez
+# --system-site-packages i tak nie widziałby PyGObject.
+dependencies = []
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

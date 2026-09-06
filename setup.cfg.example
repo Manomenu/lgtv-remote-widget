@@ -1,0 +1,76 @@
+# LG TV Remote — configuration template.
+#
+# Copy this file to ./setup.cfg, fill it in, and run ./setup.sh. The installer
+# copies it to ~/.config/lgtv-remote/config.ini (mode 0600), which is the only
+# file the service ever reads. Neither setup.cfg nor the installed copy is
+# tracked by git — they hold your MAC address and network layout.
+#
+# Every key can also be overridden by an environment variable, which wins over
+# the file. Useful for a one-off: LGTV_HOST=other-tv ./bin/lgtvd
+
+[tv]
+# Entry from ~/.ssh/config that reaches the TV as root.        [LGTV_HOST]
+host = lgtv-root
+
+# MAC address, for the Wake-on-LAN packet that powers the TV on.  [LGTV_MAC]
+# Without it the widget can turn the TV off but never on.
+mac =
+
+# Broadcast address of your network — usually your subnet with .255 at the end.
+#                                                          [LGTV_BROADCAST]
+broadcast = 255.255.255.255
+
+# Seconds to wait for the TV to accept a connection.   [LGTV_CONNECT_TIMEOUT]
+connect_timeout = 5
+
+# How long the shared SSH connection is kept open after the last command.
+# This is what makes the volume slider feel instant.   [LGTV_CONTROL_PERSIST]
+control_persist = 300
+
+[power]
+# A cold start can genuinely take this long.               [LGTV_ON_TIMEOUT]
+on_timeout = 90
+off_timeout = 45
+
+# Magic packets get dropped and power-off does not always land the first time,
+# so both commands are repeated this often while waiting.  [LGTV_RETRY_EVERY]
+retry_every = 5
+
+[keys]
+# Remote key presses are injected straight into the TV's input layer.
+#
+# On this firmware only event5 is actually read by webOS — event0 advertises
+# every key code in its capability bitmap but delivers nothing. See
+# docs/webos-notes.md for how that was measured.        [LGTV_KEY_DEVICE]
+device = /dev/input/event5
+
+# event5 does not support KEY_NEXTSONG/KEY_PREVIOUSSONG, so track skipping goes
+# through fast-forward and rewind — which is what the physical remote sends too.
+# Change these if your player wants different codes.
+# 208 = KEY_FASTFORWARD, 168 = KEY_REWIND                 [LGTV_KEY_NEXT]
+next = 208
+previous = 168
+
+[cast]
+# Screen streaming from this computer to the TV: Sunshine here, Moonlight there.
+# Set to false to hide the tile if you do not use it.    [LGTV_CAST_ENABLED]
+enabled = true
+
+sunshine_app_id = dev.lizardbyte.app.Sunshine
+sunshine_port = 47990
+moonlight_app_id = com.limelight.webos
+start_timeout = 90
+stop_timeout = 20
+
+[daemon]
+# How often the TV is asked about its state. The idle figure is deliberately
+# lazy; the panel asks for a fresh reading the moment you open it.
+poll_idle = 30
+poll_active = 5
+
+# Dragging the slider produces far more events than the TV can absorb, so only
+# the newest value is sent, at most this often.     [LGTV_VOLUME_THROTTLE_MS]
+volume_throttle_ms = 120
+
+# DEBUG, INFO, WARNING or ERROR.                             [LGTV_LOG_LEVEL]
+log_level = INFO

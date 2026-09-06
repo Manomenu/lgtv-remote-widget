@@ -1,0 +1,32 @@
+[Unit]
+Description=LG TV remote service
+Documentation=file://@REPO@/README.md
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=@REPO@/bin/lgtvd
+Restart=on-failure
+RestartSec=5
+
+# Zabezpieczenia, które NIE tworzą przestrzeni nazw montowania.
+#
+# Świadomie nie ma tu ProtectSystem, ProtectHome ani PrivateTmp, choć w usłudze
+# systemowej byłyby oczywiste. W usłudze UŻYTKOWNIKA każde z nich uruchamia
+# proces w przestrzeni nazw użytkownika, w której pliki należące do roota widać
+# jako nobody:nobody. OpenSSH odmawia wtedy czytania /etc/ssh/ssh_config.d/*
+# („Bad owner or permissions”) i kończy pracę z kodem 255 — czyli demon traci
+# jedyny sposób rozmowy z telewizorem i melduje, że jest on wyłączony.
+#
+# Zmierzone na Fedorze 44 / systemd 258 / OpenSSH 10.2. Nie przywracać bez
+# sprawdzenia, że ssh nadal działa z wnętrza usługi.
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=default.target

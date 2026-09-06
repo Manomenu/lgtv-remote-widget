@@ -1,0 +1,7 @@
+# Twoja wypełniona konfiguracja — zawiera adres MAC i topologię sieci.
+# Wzorzec do skopiowania leży w setup.cfg.example.
+/setup.cfg
+
+__pycache__/
+*.py[cod]
+.ruff_cache/
