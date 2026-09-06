@@ -100,21 +100,30 @@ export const LgtvClient = GObject.registerClass({
                ['starting', 'stopping'].includes(this.castState);
     }
 
-    _call(name, promise) {
+    /* Woła metodę na demonie, jeśli demon w ogóle jest.
+     *
+     * Wywołanie przekazujemy jako FUNKCJĘ, a nie gotową obietnicę, i to jest
+     * tu istotne: argumenty liczą się przed wejściem do metody, więc
+     * `_call('X', this._proxy.XAsync())` sięgało po `_proxy` ZANIM sprawdziło,
+     * czy jest czym sięgać. Przy nieuruchomionym demonie `_proxy` jest null
+     * i każde otwarcie panelu kończyło się TypeError-em w dzienniku —
+     * strażnik poniżej nie miał szans zadziałać.
+     */
+    _call(name, invoke) {
         if (!this.available)
             return;
-        promise.catch(error => {
+        invoke().catch(error => {
             if (!error.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
                 console.error(`lgtv-remote: ${name} failed: ${error.message}`);
         });
     }
 
-    setPower(on) { this._call('SetPower', this._proxy.SetPowerAsync(on)); }
-    setVolume(value) { this._call('SetVolume', this._proxy.SetVolumeAsync(value)); }
-    setMute(muted) { this._call('SetMute', this._proxy.SetMuteAsync(muted)); }
-    mediaKey(key) { this._call('MediaKey', this._proxy.MediaKeyAsync(key)); }
-    setCast(on) { this._call('SetCast', this._proxy.SetCastAsync(on)); }
-    refresh() { this._call('Refresh', this._proxy.RefreshAsync()); }
+    setPower(on) { this._call('SetPower', () => this._proxy.SetPowerAsync(on)); }
+    setVolume(value) { this._call('SetVolume', () => this._proxy.SetVolumeAsync(value)); }
+    setMute(muted) { this._call('SetMute', () => this._proxy.SetMuteAsync(muted)); }
+    mediaKey(key) { this._call('MediaKey', () => this._proxy.MediaKeyAsync(key)); }
+    setCast(on) { this._call('SetCast', () => this._proxy.SetCastAsync(on)); }
+    refresh() { this._call('Refresh', () => this._proxy.RefreshAsync()); }
 
     destroy() {
         this._cancellable.cancel();

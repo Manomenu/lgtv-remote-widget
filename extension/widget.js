@@ -267,8 +267,12 @@ class LgtvGroup extends St.BoxLayout {
         this._volume.slider.value = volume >= 0 ? volume / 100 : 0;
         this._syncing = false;
         this._volume.iconName = volumeIcon(volume, client.muted);
+        // Suwak przechodzi przez ten sam helper co reszta, bo sam uchwyt jest
+        // osobnym aktorem i to ON łapie klawiaturę. Ustawienie samego
+        // `slider.reactive` zostawiało go w kolejce fokusa: wyłączony suwak
+        // dawało się jeszcze przestawić strzałkami po dojściu do niego Tabem.
         this._setEnabled(this._volume, reachable && awake);
-        this._volume.slider.reactive = reachable && awake;
+        this._setEnabled(this._volume.slider, reachable && awake);
 
         for (const button of [this._previous, this._next])
             this._setEnabled(button, reachable && awake);
