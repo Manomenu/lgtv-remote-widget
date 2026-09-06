@@ -1,5 +1,7 @@
 """Włączanie i wyłączanie — pętla czekania, ponawianie, pakiet budzący."""
 
+import contextlib
+
 import pytest
 
 from lgtvd import power, tv
@@ -39,10 +41,8 @@ def _states(monkeypatch, sequence, clock=None, cost=0.0):
     def fake(transport):
         if clock is not None:
             clock.now += cost
-        try:
+        with contextlib.suppress(StopIteration):
             last[0] = next(seen)
-        except StopIteration:
-            pass
         return last[0]
 
     monkeypatch.setattr(tv, "power_state", fake)
